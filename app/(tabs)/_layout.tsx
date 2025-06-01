@@ -1,45 +1,64 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
-
+import { Ionicons } from "@expo/vector-icons";
+import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
+import { ParamListBase, RouteProp } from "@react-navigation/native";
+import { Tabs } from "expo-router";
+import { TFunction } from "i18next";
+import { I18nextProvider, useTranslation } from "react-i18next";
+import i18n from "../../assets/ts/i18next";
+enum TAB_NAMES {
+  GROUPS = "groups",
+  PLANNING = "planning",
+  ACTIVITIES = "activities",
+  SETTINGS = "settings"
+}
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { t } = useTranslation();
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
+    <I18nextProvider i18n={i18n}>
+      <Tabs screenOptions={{ tabBarActiveTintColor: "black", tabBarInactiveBackgroundColor: "white", headerShown:false }}>
+        <Tabs.Screen name={TAB_NAMES.GROUPS} options={({ route }) => defineTabOptions(route, t)} />
+        <Tabs.Screen name={TAB_NAMES.PLANNING} options={({ route }) => defineTabOptions(route, t)} />
+        <Tabs.Screen name={TAB_NAMES.ACTIVITIES} options={({ route }) =>defineTabOptions(route, t, { tabBarBadge: 3 })} />
+        <Tabs.Screen name={TAB_NAMES.SETTINGS} options={({ route }) => defineTabOptions(route, t, { tabBarBadge: "!", tabBarBadgeStyle: { fontWeight: "bold" } })} />
+      </Tabs>
+    </I18nextProvider>
+  )
+}
+
+function defineTabOptions(route: RouteProp<ParamListBase, string>, t: TFunction, customOptions?: BottomTabNavigationOptions): BottomTabNavigationOptions {
+  let title;
+  let iconName: keyof typeof Ionicons.glyphMap;
+  let iconNameOutline: keyof typeof Ionicons.glyphMap;
+  switch (route.name) {
+    case TAB_NAMES.GROUPS:
+      title = t("groups.groupsTitle");
+      iconName = "people";
+      iconNameOutline = "people-outline";
+      break;
+    case TAB_NAMES.PLANNING:
+      title = t("planning.planningTitle");
+      iconName = "duplicate";
+      iconNameOutline = "duplicate-outline";
+      break;
+    case TAB_NAMES.ACTIVITIES:
+      title = t("activities.activitiesTitle");
+      iconName = "calendar";
+      iconNameOutline = "calendar-outline";
+      break;
+    case TAB_NAMES.SETTINGS:
+      title = t("settings.settingsTitle");
+      iconName = "settings";
+      iconNameOutline = "settings-outline";
+      break;
+    default:
+      title = route.name;
+      iconName = "home";
+      iconNameOutline = "home-outline";
+  }
+  return {
+    title: title,
+    tabBarIcon: ({ color, focused, size }) => focused ? <Ionicons name={iconName} size={size} color={color} /> : <Ionicons name={iconNameOutline} size={size} color={color} />,
+    ...customOptions
+  }
 }

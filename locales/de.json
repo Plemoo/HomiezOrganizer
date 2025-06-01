@@ -1,0 +1,20 @@
+{
+  "groups": {
+    "groupsTitle": "Gruppen"
+  },
+  "activities": {
+    "activitiesTitle": "Aktivitäten"
+  },
+  "planning": {
+    "planningTitle": "Planung"
+  },
+  "settings": {
+    "settingsTitle": "Einstellungen",
+    "editProfile":"Profil bearbeiten",
+    "birthday":"Geburtstag",
+    "busyTimes":"Abwesende Zeiten",
+    "availableTimes":"Verfügbare Zeiten",
+    "busyPlaceholder":"Füge deine grundsätzlich abwesenden Zeiten hinzu, um die Planung zu erleichern.",
+    "availablePlaceholder":"Füge deine grundsätzlich verfügbare Zeiten hinzu um die Planung zu erleichtern."
+  }
+}

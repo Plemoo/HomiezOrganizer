@@ -1,0 +1,20 @@
+{
+  "groups": {
+    "groupsTitle": "Groups"
+  },
+  "activities": {
+    "activitiesTitle": "Activities"
+  },
+  "planning": {
+    "planningTitle": "Planning"
+  },
+  "settings": {
+    "settingsTitle": "Settings",
+    "editProfile":"Edit profile",
+    "birthday":"Birthday",
+    "busyTimes":"Busy times",
+    "availableTimes":"Available times",
+    "busyPlaceholder":"Add your busy times so others know when ur're unavailable.",
+    "availablePlaceholder":"Add your available times so others know when you're free."
+  }
+}
