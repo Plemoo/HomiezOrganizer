@@ -2,8 +2,11 @@ import { z } from 'zod';
 import { getRandomAvatarIcon } from './generalHelper';
 
 const TimeIntervalSchema = z.object({
-    start:z.date(),
-    end:z.date()
+    day: z.number(),
+    startHour: z.number(),
+    startMinute: z.number(),
+    endHour: z.number(),
+    endMinute: z.number()
 })
 
 export const LocalUserSchema = z.object({

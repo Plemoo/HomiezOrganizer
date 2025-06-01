@@ -10,7 +10,6 @@ export default function RootLayout() {
         <Stack.Screen name="Startpage" />
         <Stack.Screen name="(tabs)" />
       </Stack>
-
       </ThemeProvider>
     </UserProvider>
 

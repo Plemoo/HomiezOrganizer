@@ -10,11 +10,45 @@
   },
   "settings": {
     "settingsTitle": "Settings",
-    "editProfile":"Edit profile",
-    "birthday":"Birthday",
-    "busyTimes":"Busy times",
-    "availableTimes":"Available times",
-    "busyPlaceholder":"Add your busy times so others know when ur're unavailable.",
-    "availablePlaceholder":"Add your available times so others know when you're free."
+    "editProfile": "Edit profile",
+    "username":"Username",
+    "birthday": "Birthday",
+    "busyTimes": "Busy times",
+    "availableTimes": "Available times",
+    "busyPlaceholder": "Add your busy times so others know when ur're unavailable.",
+    "availablePlaceholder": "Add your available times so others know when you're free."
+  },
+  "common": {
+    "weekDays": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "time": {
+      "addBusy":"Add busy times",
+      "addAvailable":"Add available times",
+      "day": "Day",
+      "begin": "Start time",
+      "end": "End time",
+      "duration": "{{begin}} Uhr until {{end}}"
+    },
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    }
   }
 }
