@@ -1,6 +1,17 @@
 {
   "groups": {
-    "groupsTitle": "Groups"
+    "groupsTitle": "Groups",
+    "newGroup":"Create new Group",
+    "groupNameInput": "Enter Group name",
+    "groupName":"Name",
+    "groupDescription":"Description",
+    "groupDescriptionInput":"Enter Group description",    
+    "groupMembers":"Members",
+    "groupIcon":"Group Icon",
+    "groupInformation":"Share the link for the group in the detail page to others and let them join your group.",
+    "pastGroupActivities":"Past Activities",
+    "futureGroupActivities":"Upcoming Activities",
+    "noGroupText":"Create a new group with the '+' or join existing groups through a link, shared by existing group members."
   },
   "activities": {
     "activitiesTitle": "Activities"
@@ -16,9 +27,20 @@
     "busyTimes": "Busy times",
     "availableTimes": "Available times",
     "busyPlaceholder": "Add your busy times so others know when ur're unavailable.",
-    "availablePlaceholder": "Add your available times so others know when you're free."
+    "availablePlaceholder": "Add your available times so others know when you're free.",
+    "account":"Account",
+    "profileSettings":"Profile Settings",
+    "profileSettingsSubtext":"Manage your profile here",
+    "appSettings":"App-Settings",
+    "notifications":"Notifications",
+    "notificationsSubtext":"Customize your notification preferences",
+    "personalAvailability":"Personal Availability",
+    "language":"Language",
+    "languageGerman":"German",
+    "languageEnglish":"English"
   },
   "common": {
+    "submit":"Submit",
     "weekDays": {
       "monday": "Monday",
       "tuesday": "Tuesday",

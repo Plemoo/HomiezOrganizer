@@ -1,114 +1,48 @@
-import { IBusyAvailableModal, IBusyAvailableModalType, IBusyAvailableTimes } from '@/assets/interfaces/ProfileInterface';
-import { overwriteSecureStore, overwriteSecureStoreEntry } from '@/assets/ts/asyncStorage';
+import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
+import { useMonths } from '@/assets/hooks/timeObjectHooks';
+import useUiIcons from '@/assets/hooks/uiIconHook';
+import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
 import { formatDate } from '@/assets/ts/timeManagement';
-import { useMonths, useWeekdays } from '@/assets/ts/timeObjectHooks';
-import AvailabilityPicker from '@/components/BusyAvailablePicker';
+import GoBack from '@/components/GoBack';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
-import { Entypo, Feather, FontAwesome, Fontisto, MaterialIcons } from '@expo/vector-icons';
 import WheelPicker from '@quidone/react-native-wheel-picker';
+import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
-import i18next from 'i18next';
-import React, { useEffect, useState } from 'react';
+import i18next, { changeLanguage } from 'i18next';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableHighlight, View } from 'react-native';
+import { Dimensions, FlatList, Modal, Pressable, ScrollView, Text, TextInput, TouchableHighlight, View } from 'react-native';
 
-import userIcon from "../../../assets/images/avatars/avatar3.svg"; // TODO: GENERISCH ABBILDEN DAS ICON
-
-const { width, height } = Dimensions.get('window'); // Get the screen width
+const { height } = Dimensions.get('window'); // Get the screen width
 
 const Profile = () => {
-  let { user, setUser } = useUser();
+  let { user, setUserIncludingLocalStorageAndFirebase } = useUser();
   const { theme } = useCustomTheme();
   const { t } = useTranslation();
-  const weekDays = useWeekdays();
   const months = useMonths();
-  const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
-  const [modalType, setModalType] = useState<IBusyAvailableModal>({ title: "", buttonText: "", type: "busy" });
-  const [hasBusyTimes, setHasBusyTimes] = useState(user.busy && user.busy.length > 0);
-  const [hasAvailableTimes, setHasAvailableTimes] = useState(user.available && user.available.length > 0);
   const [editMode, setEditMode] = useState(false)
-  const [username, setUsername] = useState(user.username|| "Max Mustermann")
+  const [username, setUsername] = useState(user.username || "Max Mustermann")
   const [birthday, setBirthday] = useState<Date>(user.birthday || new Date());
-
-  useEffect(() => {
-    if (user.busy && user.busy.length > 0) {
-      overwriteSecureStoreEntry("busy", user.busy);
-      // TODO: Update Firebase User here
-    } else {
-      setHasBusyTimes(false)
-    }
-  }, [user.busy])
-
-  useEffect(() => {
-    if (user.available && user.available.length > 0) {
-      overwriteSecureStoreEntry("available", user.available);
-      // TODO: Update Firebase User here
-    } else {
-      setHasAvailableTimes(false);
-    }
-  }, [user.available])
-
-  const closeModalAndSetTimes = (times: IBusyAvailableTimes, type: IBusyAvailableModalType) => {
-    setDatePickerVisibility(false);
-    if (type.type === "available") {
-      setUser(prevState => ({
-        ...prevState,
-        available: [...prevState.available || [], times]
-      }
-      ));
-      setHasAvailableTimes(true)
-    } else if (type.type === "busy") {
-      setUser(prevState => ({
-        ...prevState,
-        busy: [...prevState.busy || [], times]
-      }
-      ));
-      setHasBusyTimes(true);
-    }
-  }
-  const openBusyTimesModal = () => {
-    setModalType({ title: t("common.time.addBusy"), buttonText: t("common.time.addBusy"), type: "busy" });
-    setDatePickerVisibility(true);
-  }
-
-  const openAvailableTimesModal = () => {
-    setModalType({ title: t("common.time.addAvailable"), buttonText: t("common.time.addAvailable"), type: "available" });
-    setDatePickerVisibility(true);
-  }
-
-  const removeEntry = (entry: IBusyAvailableTimes, type: "busy" | "available") => {
-    if (type === "busy") {
-      setUser(prevState => ({
-        ...prevState,
-        busy: prevState.busy?.filter(busy => busy !== entry)
-      }));
-    } else if (type === "available") {
-      setUser(prevState => ({
-        ...prevState,
-        available: prevState.available?.filter(avail => avail !== entry)
-      }));
-    }
-  }
-
-  const getFixedMinutes = (minutes: number) => {
-    return minutes < 10 ? "0" + minutes : minutes.toString();
-  }
+  const [language, setLanguage] = useState<"de" | "en">(user.language);
+  const [userIcon, setUserIcon] = useState<string>(user.icon);
+  const uiIcons = useUiIcons();
+  const { avatars } = useAvatarIcons();
+  const [iconPickerModalOpen, setIconPickerModalOpen] = useState(false)
 
   const submitUserChanges = () => {
     setEditMode(false);
-    setUser(prevState=>({...prevState, birthday:birthday, username: username}));
-    overwriteSecureStore("birthday",birthday.toISOString());
-    overwriteSecureStore("username",username);
-    // TODO: Update Firebase User here
+    let updatedUser: ILocalUser = { ...user, birthday: birthday, username: username, language: language, icon: userIcon };
+    setUserIncludingLocalStorageAndFirebase(updatedUser)
+    changeLanguage(language); // Change the language in i18next
   }
 
-  const abortUserEdit = ()=>{
+  const abortUserEdit = () => {
     setEditMode(false)
     setUsername(user.username || "Max Mustermann")
   }
 
-  const setDayForBirthday = (day:number)=>{
+  const setDayForBirthday = (day: number) => {
     setBirthday(prevState => {
       const newDate = new Date(prevState);
       newDate.setDate(day);
@@ -116,7 +50,7 @@ const Profile = () => {
     });
   }
 
-  const setMonthForBirthday = (month:number)=>{
+  const setMonthForBirthday = (month: number) => {
     setBirthday(prevState => {
       const newDate = new Date(prevState);
       newDate.setMonth(month);
@@ -124,7 +58,7 @@ const Profile = () => {
     });
   }
 
-  const setYearForBirthday = (year:number)=>{
+  const setYearForBirthday = (year: number) => {
     setBirthday(prevState => {
       const newDate = new Date(prevState);
       newDate.setFullYear(year);
@@ -132,116 +66,116 @@ const Profile = () => {
     });
   }
 
+  const getDisplayedLanguage = () => {
+    if (user.language === "de") {
+      return t("settings.languageGerman");
+    } else if (user.language === "en") {
+      return t("settings.languageEnglish");
+    } else {
+      return t("settings.languageGerman");
+    }
+  }
+
+  //TODO: Komponente in 2 aufteilen, einmal Komponente darstellen mit Edito Mode true einmal false
+
   return (
-    <ScrollView style={theme.container}>
+    <ScrollView style={theme.containers.rootContainer}>
+      {editMode ?
+        <Pressable style={theme.leftCornerIcon} onPress={() => setEditMode(false)}>
+          <uiIcons.ArrowLeftIcon size={30} color={theme.colors.primary} />
+        </Pressable>
+        :
+        <GoBack />
+      }
+
       {/* Image */}
-      <View style={theme.centeredContainer}>
-        <Image style={{ width: height * 0.3, height: height * 0.3, borderRadius: 200, backgroundColor: theme.colors.secondary }} source={userIcon} />
+      <View style={theme.containers.centeredContainer}>
+        <Pressable disabled={!editMode} onPress={() => setIconPickerModalOpen(true)}>
+          <Image style={{ width: height * 0.3, height: height * 0.3, borderRadius: 200, backgroundColor: theme.colors.secondary }} source={avatars[userIcon]} />
+        </Pressable>
       </View>
       {/* Username */}
-      <View style={theme.centeredContainer}>
+      <View style={theme.containers.centeredContainer}>
         <Text style={theme.typography.heading1}>{user.username ? user.username : username}</Text>
-        <TouchableHighlight onPress={() => setEditMode(true)} underlayColor={theme.colors.secondary} style={{ borderRadius: theme.borderRadius.medium }}>
-          <View style={{ flexDirection: "row" }}>
-            <MaterialIcons name="edit" size={24} color={theme.colors.secondary} />
-            <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>{t("settings.editProfile")}</Text>
-          </View>
-        </TouchableHighlight>
+        {editMode ?
+          null
+          :
+          <TouchableHighlight onPress={() => setEditMode(true)} underlayColor={theme.colors.secondary} style={{ borderRadius: theme.borderRadius.medium }}>
+            <View style={{ flexDirection: "row" }}>
+              <uiIcons.EditIcon size={24} color={theme.colors.secondary} />
+              <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>{t("settings.editProfile")}</Text>
+            </View>
+          </TouchableHighlight>
+        }
+
       </View>
       {/* Username only Edit */}
       {editMode ?
-        <View style={{paddingTop:theme.spacing.large}}>
+        <View style={{ paddingTop: theme.spacing.large }}>
           <Text style={theme.typography.heading2}>{t("settings.username")}</Text>
           <View style={[theme.input, { marginTop: theme.spacing.small }]}>
             <TextInput
-              value={user.username || username}
+              value={username}
               onChangeText={(text) => setUsername(text)}
-              style={[theme.typography.body, { marginLeft: theme.spacing.small }]}
+              style={theme.typography.body}
             />
           </View>
         </View>
         :
-        <></>
+        null
       }
       {/* Birthday*/}
-      <View style={[styles.birthdayContainer, { paddingTop: theme.spacing.xlarge }]}>
+      <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.xlarge }]}>
         <Text style={theme.typography.heading2}>{t("settings.birthday")}</Text>
         {editMode ?
           <View style={{ flexDirection: "row" }}>
-            <WheelPicker style={{ flex: 1 }} onValueChanged={({item})=>setDayForBirthday(item.value)} value={user.birthday?user.birthday.getDate():new Date().getDate()} data={[...Array(31).keys()].map((index) => ({ value: index+1, label: (index + 1).toString() }))} />
-            <WheelPicker style={{ flex: 1 }} onValueChanged={({item})=>setMonthForBirthday(item.value)} value={user.birthday?user.birthday.getMonth():new Date().getMonth()} data={months.map((m, index) => ({ value: index, label: m }))} />
-            <WheelPicker style={{ flex: 1 }} onValueChanged={({item})=>setYearForBirthday(item.value)} value={user.birthday?user.birthday.getFullYear():new Date().getFullYear()} data={[...Array(100).keys()].map((index) => ({ value: (new Date().getFullYear() - index), label: (new Date().getFullYear() - index).toString() }))} />
+            <WheelPicker style={{ flex: 1 }} itemTextStyle={[theme.typography.heading3, { lineHeight: 50 }]} onValueChanged={({ item }) => setDayForBirthday(item.value)} value={user.birthday ? user.birthday.getDate() : new Date().getDate()} data={[...Array(31).keys()].map((index) => ({ value: index + 1, label: (index + 1).toString() }))} />
+            <WheelPicker style={{ flex: 1 }} itemTextStyle={[theme.typography.heading3, { lineHeight: 50 }]} onValueChanged={({ item }) => setMonthForBirthday(item.value)} value={user.birthday ? user.birthday.getMonth() : new Date().getMonth()} data={months.map((m, index) => ({ value: index, label: m }))} />
+            <WheelPicker style={{ flex: 1 }} itemTextStyle={[theme.typography.heading3, { lineHeight: 50 }]} onValueChanged={({ item }) => setYearForBirthday(item.value)} value={user.birthday ? user.birthday.getFullYear() : new Date().getFullYear()} data={[...Array(100).keys()].map((index) => ({ value: (new Date().getFullYear() - index), label: (new Date().getFullYear() - index).toString() }))} />
           </View>
           :
           <Text style={theme.typography.body}>{user.birthday ? formatDate(user.birthday, i18next.language) : "---"}</Text>
         }
       </View>
-      {/* Busy/Available Times or Edit Submit Button*/}
+      {/* Language*/}
+      <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.xlarge }]}>
+        <Text style={theme.typography.heading2}>{t("settings.language")}</Text>
+        {editMode ?
+          <View style={{ paddingBottom: theme.spacing.large }}>
+            <Picker onValueChange={(val: "de" | "en") => setLanguage(val)} selectedValue={language}>
+              <Picker.Item style={theme.typography.heading3} label={t("settings.languageGerman")} value={"de"} />
+              <Picker.Item style={theme.typography.heading3} label={t("settings.languageEnglish")} value={"en"} />
+            </Picker>
+          </View>
+          :
+          <Text style={theme.typography.body}>{getDisplayedLanguage()}</Text>
+        }
+      </View>
+      {/* Edit Submit Button*/}
       {editMode ?
-        <View style={{flex:1, flexDirection: "row", justifyContent:"space-between"}}>
-          <View style={{flex:5}}>
-            <TouchableHighlight style={theme.button} underlayColor={theme.colors.secondary} onPress={submitUserChanges}>
-              <Text style={theme.buttonText}>Submit</Text>
-            </TouchableHighlight>
-          </View>
-          <View style={theme.centeredContainer}>
-            <Feather name="x" size={24} color={theme.colors.textLight} style={ theme.button} onPress={abortUserEdit}/>
-          </View>
+        <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 20 }}>
+          <TouchableHighlight style={[theme.button, { flex: 1 }]} underlayColor={theme.colors.secondary} onPress={submitUserChanges}>
+            <Text style={theme.buttonText}>{t("common.submit")}</Text>
+          </TouchableHighlight>
         </View>
         :
-        <View>
-          <View style={[styles.busyTimesContainer, { paddingTop: theme.spacing.large }]}>
-            <View style={styles.headingWithIconContainer}>
-              <Text style={theme.typography.heading2}>{t("settings.busyTimes")}</Text>
-              <Entypo name="plus" size={30} color="black" onPress={openBusyTimesModal} />
-            </View>
-            {user.busy && hasBusyTimes ?
-              user.busy.map((busyTime, index) => (
-                <View key={index} style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-start", paddingVertical: theme.spacing.small }}>
-                  <FontAwesome name="remove" size={24} color={theme.colors.primary} onPress={() => removeEntry(busyTime, "busy")} />
-                  <View style={{ padding: theme.spacing.small, marginHorizontal: theme.spacing.large, marginLeft: theme.spacing.small, backgroundColor: theme.colors.secondary, borderRadius: theme.borderRadius.small }}>
-                    <MaterialIcons key={index} name="event-busy" size={24} color="black" />
-                  </View>
-                  <View style={{ flexGrow: 1 }}>
-                    <Text style={theme.typography.body}>{weekDays[busyTime.day]}</Text>
-                    <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>
-                      {t("common.time.duration", { begin: busyTime.startHour + ":" + getFixedMinutes(busyTime.startMinute), end: busyTime.endHour + ":" + getFixedMinutes(busyTime.endMinute) })}
-                    </Text>
-                  </View>
-                </View>
-              ))
-              :
-              <Text style={theme.typography.body}>{t("settings.busyPlaceholder")}</Text>}
-          </View>
-
-          <View style={[styles.availableTimesContainer, { paddingTop: theme.spacing.large }]}>
-            <View style={styles.headingWithIconContainer}>
-              <Text style={theme.typography.heading2}>{t("settings.availableTimes")}</Text>
-              <Entypo name="plus" size={30} color="black" onPress={openAvailableTimesModal} />
-            </View>
-            {user.available && hasAvailableTimes ?
-              user.available.map((availableTime, index) => (
-                <View key={index} style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-start", paddingVertical: theme.spacing.small }}>
-                  <FontAwesome name="remove" size={24} color="black" onPress={() => removeEntry(availableTime, "available")} />
-                  <View style={{ padding: theme.spacing.small, marginRight: theme.spacing.large, marginLeft: theme.spacing.small, backgroundColor: theme.colors.secondary, borderRadius: theme.borderRadius.small }}>
-                    <MaterialIcons key={index} name="event-available" size={24} color="black" />
-                  </View>
-                  <View style={{ flexGrow: 1 }}>
-                    <Text style={theme.typography.body}>{weekDays[availableTime.day]}</Text>
-                    <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>
-                      {t("common.time.duration", { begin: availableTime.startHour + ":" + getFixedMinutes(availableTime.startMinute), end: availableTime.endHour + ":" + getFixedMinutes(availableTime.endMinute) })}
-                    </Text>
-                  </View>
-                </View>
-              ))
-              :
-              <Text style={theme.typography.body}>{t("settings.availablePlaceholder")}</Text>}
-          </View>
-        </View>
+        null
       }
-      <Modal animationType="slide" visible={isDatePickerVisible} onRequestClose={() => setDatePickerVisibility(false)}>
-        <Fontisto name="close-a" size={24} color="black" style={{ alignSelf: "flex-end", padding: 5 }} onPress={() => setDatePickerVisibility(false)} />
-        <AvailabilityPicker submitTimes={closeModalAndSetTimes} title={modalType.title} buttonText={modalType.buttonText} type={modalType.type} />
+      <Modal animationType="slide" visible={iconPickerModalOpen} onRequestClose={() => setIconPickerModalOpen(false)}>
+        <View style={theme.containers.rootContainer}>
+          <uiIcons.RemoveIcon size={24} color={theme.colors.primary} style={{ alignSelf: "flex-end", padding: 5 }} onPress={() => setIconPickerModalOpen(false)} />
+          <FlatList
+            data={Object.keys(avatars)}
+            numColumns={3}
+            contentContainerStyle={{ alignItems: "center", justifyContent: "center", }}
+            renderItem={({ item }) => (
+              <Pressable onPress={() => { setUserIcon(item); setIconPickerModalOpen(false) }} style={{ margin: theme.spacing.medium }}>
+                <Image source={avatars[item]} style={{ width: 80, height: 80 }} />
+              </Pressable>
+            )}
+            keyExtractor={(item) => item}
+          />
+        </View>
       </Modal>
     </ScrollView>
   )
@@ -249,24 +183,3 @@ const Profile = () => {
 
 export default Profile
 
-
-
-const styles = StyleSheet.create({
-  birthdayContainer: {
-    flex: 1,
-    justifyContent: "flex-start"
-  },
-  busyTimesContainer: {
-    flex: 1,
-    justifyContent: "flex-start"
-  },
-  availableTimesContainer: {
-    flex: 1,
-    justifyContent: "flex-start"
-  },
-  headingWithIconContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  }
-})

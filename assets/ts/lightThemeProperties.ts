@@ -1,4 +1,4 @@
-import { ITheme, IThemeColors, IThemeSpacing, IThemeTypography } from "../interfaces/LightThemeInterface";
+import { ITheme, IThemeColors, IThemeInput, IThemeSpacing, IThemeTypography } from "../interfaces/LightThemeInterface";
 
 
 // Create the Theme Context
@@ -39,12 +39,20 @@ const lightThemeTypography: IThemeTypography = {
         lineHeight: 24
     }
 }
+
+
+
 const lightThemeSpacing: IThemeSpacing = {
     small: 8,
     medium: 16,
     large: 24,
     xlarge: 32,
 }
+const lightThemeInput:IThemeInput={
+        backgroundColor:lightThemeColors.secondary,
+        borderRadius:lightThemeBorderRadius.large,
+        paddingLeft:lightThemeSpacing.small
+    }
 
 // Define your themes
 export const lightTheme: ITheme = {
@@ -61,22 +69,35 @@ export const lightTheme: ITheme = {
         fontWeight:"bold",
         color: lightThemeColors.textLight
     },
-    container: {
-        flex: 1,
-        backgroundColor: lightThemeColors.background,
-        padding: lightThemeSpacing.small
+    containers:{
+        rootContainer:{
+            flex: 1,
+            backgroundColor: lightThemeColors.background,
+            padding: lightThemeSpacing.small
+        },
+        leftAlignedContainer:{
+            flex:1,
+            justifyContent:"flex-start"
+        },
+        centeredContainer:{
+            flex:1,
+            justifyContent:"center",
+            alignItems:"center"
+    }
     },
     spacing:lightThemeSpacing,
-    input:{
-        backgroundColor:lightThemeColors.secondary,
-        borderRadius:lightThemeBorderRadius.large,
-        ...lightThemeTypography.body
-    },
+    input:lightThemeInput,
     borderRadius:lightThemeBorderRadius,
-    centeredContainer:{
-        flex:1,
-        justifyContent:"center",
-        alignItems:"center"
+    leftCornerIcon:{
+        position:"absolute",
+        top:lightThemeSpacing.small,
+        left:lightThemeSpacing.small,
+        zIndex:100
+    },
+    rightCornerIcon:{
+        position:"absolute",
+        top:lightThemeSpacing.small,
+        right:lightThemeSpacing.small,
+        zIndex:100
     }
-
 };

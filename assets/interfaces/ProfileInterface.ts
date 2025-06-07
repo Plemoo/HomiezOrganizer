@@ -1,13 +1,15 @@
+import { FieldValue } from "firebase/firestore/lite";
 
 export interface IDbUser extends ICommonUser{
-    id:string;
+    updatedAt?:Date|FieldValue;
 }
 
 export interface ILocalUser extends ICommonUser{
-    uuid:string;
+    language:"de"|"en";
 }
 
 export interface ICommonUser{
+    id:string;
     username?: string;
     icon: string;
     birthday?:Date;

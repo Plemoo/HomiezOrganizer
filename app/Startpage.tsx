@@ -19,7 +19,6 @@ const Startpage = () => {
     if (!loading) {
       // Check initial connection status
       NetInfo.fetch().then(state => {
-        console.log("test", state.isConnected)
         redirectOnStart(state.isConnected ? true : false);
       });
     }
@@ -39,7 +38,7 @@ const Startpage = () => {
       router.replace("/(tabs)/settings/Profile");
       isRedirect = true;
     } else { // User defined + internet -> redirect to activites
-      router.replace("/(tabs)/activities");
+      router.replace("/(tabs)/activities/Activities");
       isRedirect = true;
     }
     return isRedirect;
@@ -48,7 +47,7 @@ const Startpage = () => {
   return (
     <View>
       <Text>
-        No Internet
+        No Internet123
         {/* {redirectOnStart() ? "Redirecting" : 'No internet connection.'} */}
       </Text>
     </View>

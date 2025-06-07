@@ -5,18 +5,34 @@ export interface ITheme {
     typography: IThemeTypography,
     button: IThemeButton,
     buttonText: IThemeButtonText;
-    container: IThemeContainer;
+    containers: IThemeContainer;
     spacing: IThemeSpacing;
     input: IThemeInput;
     borderRadius: IThemeBorderRadius;
-    centeredContainer:IThemeCenteredContainer;
+    leftCornerIcon: IThemeLeftCornerIcon;
+    rightCornerIcon: IThemeRightCornerIcon;
 }
 
-interface IThemeCenteredContainer{
-    flex:number;
-    justifyContent: ViewStyle["justifyContent"];
-    alignItems: ViewStyle["alignItems"];
+interface IThemeLeftCornerIcon extends IThemeTopCornerIcon{
+    left: number;
 }
+
+interface IThemeRightCornerIcon extends IThemeTopCornerIcon{
+    right: number;
+}
+
+interface IThemeTopCornerIcon{
+    position: ViewStyle["position"];
+    top: number;
+    zIndex: number;
+}
+
+interface IThemeContainer {
+    rootContainer: IThemeRootContainer;
+    leftAlignedContainer: IThemeAlignedContainer;
+    centeredContainer: IThemeAlignedContainer;
+}
+
 
 export interface IThemeBorderRadius {
     small: number;
@@ -25,9 +41,10 @@ export interface IThemeBorderRadius {
     xlarge: number;
 }
 
-interface IThemeInput extends IText {
+export interface IThemeInput {
     backgroundColor: string;
     borderRadius: number;
+    paddingLeft:number;
 }
 
 export interface IThemeSpacing {
@@ -37,10 +54,16 @@ export interface IThemeSpacing {
     xlarge: number,
 }
 
-interface IThemeContainer {
+interface IThemeRootContainer {
     flex: number;
     backgroundColor: string;
     padding: number;
+}
+
+interface IThemeAlignedContainer {
+    flex: number;
+    justifyContent: ViewStyle["justifyContent"];
+    alignItems?: ViewStyle["alignItems"];
 }
 
 interface IThemeButton {

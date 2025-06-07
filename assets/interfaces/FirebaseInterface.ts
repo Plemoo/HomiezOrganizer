@@ -1,2 +1,2 @@
 
-export type TAvailableFirebaseCollections = "User" | "Group";
+export type TAvailableFirebaseCollections = "User" | "Group" | "Activity";

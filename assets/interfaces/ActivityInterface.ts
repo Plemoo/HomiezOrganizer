@@ -1,21 +1,7 @@
-// Aktivität Datenstruktur:
-// {
-// activityUuid:string,
-// name:string,
-// minParticipants:number,
-// owningGroupUuid:string,
-// duration:number,
-// start:date,
-// end:date,
-// description:string
-// timeSlotsPerUserUuid:[{userUuid:string, slots:[{start:date, end:date}]}]
-// declinedUserUuids:string[]
-// state:planning|pending|closed
 
-import { ITimeInterval } from "./HelperInterface";
 
 export interface IActivity {
-  activityUuid: string;
+  id: string;
   name: string;
   minParticipants: number;
   owningGroupUuid: string;
@@ -27,9 +13,10 @@ export interface IActivity {
     slots: ITimeInterval[];
   }[];
   declinedUserUuids: string[];
-  state: IActivityState;
+  state: "planning" | "pending" | "closed";
 } 
 
-interface IActivityState{
-      state: "planning" | "pending" | "closed";
+interface ITimeInterval{
+  start:Date,
+  end:Date
 }

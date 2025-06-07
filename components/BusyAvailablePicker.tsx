@@ -1,5 +1,5 @@
+import { useWeekdays } from "@/assets/hooks/timeObjectHooks";
 import { ITimePickerProps } from "@/assets/interfaces/ProfileInterface";
-import { useWeekdays } from "@/assets/ts/timeObjectHooks";
 import { Picker } from "@react-native-picker/picker";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -32,7 +32,7 @@ const AvailabilityPicker: React.FC<ITimePickerProps> =({submitTimes, title, butt
     submitTimes(time, {type});
   }
   return (
-    <View style={theme.container}>
+    <View style={theme.containers.rootContainer}>
       <Text style={[theme.typography.heading1,{textAlign:"center", paddingBottom:theme.spacing.large}]}>{title}</Text>
     <View style={{paddingBottom:theme.spacing.medium}}>
       <Text style={theme.typography.heading2}>{t("common.time.day")}</Text>

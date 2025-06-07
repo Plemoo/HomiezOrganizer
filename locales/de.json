@@ -1,6 +1,17 @@
 {
   "groups": {
-    "groupsTitle": "Gruppen"
+    "groupsTitle": "Gruppen",
+    "newGroup":"Erstelle eine neue Gruppe",
+    "groupNameInput": "Gruppenname eingeben",
+    "groupName":"Name",
+    "groupDescription":"Beschreibung",
+    "groupDescriptionInput":"Gruppenbeschreibung eingeben",
+    "groupMembers":"Mitglieder",
+    "groupIcon":"Symbol der Gruppe",
+    "groupInformation":"Teile den Link der Gruppe (siehe Detail Seite) mit anderen damit sie der Gruppe beitreten.",
+    "pastGroupActivities":"Vergangene Aktivitäten",
+    "futureGroupActivities":"Zukünftige Aktivitäten",
+    "noGroupText":"Erstelle eine neue Gruppe über das '+' oder tritt bestehenden Gruppen über einen Link bei, welcher von Gruppenmitgliedern geteilt werden kann."
   },
   "activities": {
     "activitiesTitle": "Aktivitäten"
@@ -16,9 +27,21 @@
     "busyTimes":"Abwesende Zeiten",
     "availableTimes":"Verfügbare Zeiten",
     "busyPlaceholder":"Füge deine grundsätzlich abwesenden Zeiten hinzu, um die Planung zu erleichern.",
-    "availablePlaceholder":"Füge deine grundsätzlich verfügbare Zeiten hinzu um die Planung zu erleichtern."
+    "availablePlaceholder":"Füge deine grundsätzlich verfügbare Zeiten hinzu um die Planung zu erleichtern.",
+    "account":"Konto",
+    "profileSettings":"Profil Einstellungen",
+    "profileSettingsSubtext":"Bearbeite dein Profil hier",
+    "appSettings":"App-Einstellungen",
+    "notifications":"Benachrichtigungen",
+    "notificationsSubtext":"Verwalte deine Benachrichtigungseinstellungen",
+    "personalAvailability":"Eigene Verfügbarkeit",
+    "personalAvailabilitySubtext":"Trage deine Abwesenheiten und Verfügbarkeiten ein",
+    "language":"Sprache",
+    "languageGerman":"Deutsch",
+    "languageEnglish":"Englisch"
   },
   "common":{
+    "submit":"Bestätigen",
     "weekDays":{
       "monday":"Montag",
       "tuesday":"Dienstag",

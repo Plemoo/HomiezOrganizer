@@ -42,3 +42,13 @@ i18next
   });
 
 export default i18next;
+
+export function getDefaultLanguage(){
+    if(i18next.language === "de"){
+        return "de";
+    }else if(i18next.language === "en"){
+        return "en";
+    }else{
+        return "de";
+    }
+}
