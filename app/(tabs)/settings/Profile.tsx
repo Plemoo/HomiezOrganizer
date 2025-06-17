@@ -167,7 +167,7 @@ const Profile = () => {
           <FlatList
             data={Object.keys(avatars)}
             numColumns={3}
-            contentContainerStyle={{ alignItems: "center", justifyContent: "center", }}
+            contentContainerStyle={{ alignItems: "center", justifyContent: "center"}}
             renderItem={({ item }) => (
               <Pressable onPress={() => { setUserIcon(item); setIconPickerModalOpen(false) }} style={{ margin: theme.spacing.medium }}>
                 <Image source={avatars[item]} style={{ width: 80, height: 80 }} />

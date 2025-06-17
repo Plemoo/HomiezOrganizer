@@ -7,9 +7,9 @@ export const unstable_settings = {
 const ActivityLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Activities"/>
-        <Stack.Screen name="ActivityDetail"/>
-        <Stack.Screen name="ActivityResponse"/>
+      <Stack.Screen name="Activities" />
+      <Stack.Screen name="ActivityDetail" />
+      <Stack.Screen name="ScheduledActivity" />
     </Stack>
   )
 }

@@ -9,7 +9,6 @@ const PlanningLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Planning"/>
-        <Stack.Screen name="PlanningDraft"/>
     </Stack>
   )
 }

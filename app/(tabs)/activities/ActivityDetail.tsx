@@ -1,14 +1,403 @@
-import React from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import useUiIcons from '@/assets/hooks/uiIconHook';
+import { IActivity, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
+import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
+import { activityCancelConfirmationDialog } from '@/assets/ts/activityCancelDialog';
+import { firebaseErrorHandling, getFirebaseDocument, getFirebaseDocumentArray, updateFirebaseDocument } from '@/assets/ts/firebaseExchange';
+import { parseFirebaseActivity, parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
+import { ActivitySchema, zodErrorLogging } from '@/assets/ts/schemas';
+import { formatDateAndTimeSmall, showDuration } from '@/assets/ts/timeManagement';
+import ActivityComments from '@/components/ActivityComments';
+import AvailableTimesModal from '@/components/AvailableTimesModal';
+import GoBack from '@/components/GoBack';
+import { useUser } from '@/components/ProfileInformationContext';
+import ShowUserIconOrName from '@/components/ShowUserIconOrName';
+import { useCustomTheme } from '@/components/ThemeContext';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import i18next from 'i18next';
+import { isEqual } from 'lodash';
+import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FlatList, Pressable, ScrollView, Switch, Text, TouchableHighlight, View } from 'react-native';
 
 const ActivityDetail = () => {
+  const { user } = useUser();
+  const { activityStringified } = useLocalSearchParams<{ activityStringified: string }>();
+  const { theme } = useCustomTheme();
+  const [anyAcceptionUser, setAnyAcceptionUser] = useState<ILocalUser[]>([]);
+  const [declinedUser, setDeclinedUser] = useState<ILocalUser[]>([]);
+  const [openUser, setOpenUser] = useState<ILocalUser[]>([]);
+  const [timeSlotsPerUser, setTimeSlotsPerUser] = useState<ITimeSlot[]>([]);
+  const [groupId, setGroupId] = useState<string | undefined>();
+  const [activityId, setActivityId] = useState<string | undefined>();
+  const [activityName, setActivityName] = useState<string | undefined>();
+  const [activityDuration, setActivityDuration] = useState<string | undefined>();
+  const [activityMinParticipants, setActivityMinParticipants] = useState<number | undefined>();
+  const [activityDescription, setActivityDescription] = useState<string | undefined>();
+  const [userActivityStatus, setUserActivityStatus] = useState<"accepted" | "declined" | "open">("open");
+  const [refreshPage, setRefreshPage] = useState(false);
+  const router = useRouter();
+  const { t } = useTranslation();
+  const uiIcon = useUiIcons();
+  const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
+  const [newTimeSlotModalVisible, setNewTimeSlotModalVisible] = useState(false);
+
+
+  useEffect(() => {
+    setRefreshPage(false);
+    if (activityStringified) {
+      try {
+        const parsedActivity: IActivity = ActivitySchema.parse(JSON.parse(activityStringified));
+        setActivityId(parsedActivity.id);
+        setGroupId(parsedActivity.owningGroupId);
+        setActivityName(parsedActivity.name);
+        setActivityDuration(showDuration(parsedActivity.duration));
+        setActivityMinParticipants(parsedActivity.minParticipants);
+        setActivityDescription(parsedActivity.description);
+        setTimeSlotsPerUser(parsedActivity.timeSlotsPerUserUuid);
+        // Fetch all the users of the Group/Activity
+        getFirebaseDocument(parsedActivity.owningGroupId, "Group")
+          .then((groupDoc) => {
+            let group = parseFirebaseGroup(groupDoc);
+            return group ? group.memberUuids : [];
+          }).then((groupMembers) => {
+            const userIdOfAnySlot = parsedActivity.timeSlotsPerUserUuid.flatMap((slot) => slot.userUuid);
+            const userIdDeclined = parsedActivity.declinedUserUuids;
+            const userIdOpen = groupMembers.filter((userId) => !userIdOfAnySlot.includes(userId) && !userIdDeclined.includes(userId));
+            getFirebaseDocumentArray([...userIdOfAnySlot, ...userIdDeclined, ...userIdOpen], "User")
+              .then((docs) => {
+                const allUsers = docs.map((doc) => parseFirebaseUser(doc)).filter((user): user is ILocalUser => user !== null);
+                setAnyAcceptionUser(allUsers.filter(firebaseUser => userIdOfAnySlot.includes(firebaseUser.id)));
+                setDeclinedUser(allUsers.filter(firebaseUser => userIdDeclined.includes(firebaseUser.id)));
+                setOpenUser(allUsers.filter(firebaseUser => userIdOpen.includes(firebaseUser.id)));
+                if (userIdDeclined.includes(user.id)) {
+                  setUserActivityStatus("declined");
+                } else if (userIdOfAnySlot.includes(user.id)) {
+                  setUserActivityStatus("accepted");
+                } else {
+                  setUserActivityStatus("open");
+                }
+              })
+              .catch((err) => firebaseErrorHandling(err))
+          }).catch((err) => firebaseErrorHandling(err));
+
+      } catch (error) {
+        zodErrorLogging(error)
+      }
+    }
+  }, [activityStringified, refreshPage])
+
+
+  const addOrRemoveUserFromTimeSlot = (item: ITimeSlot) => {
+    if (!activityId || !groupId) return;
+    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      .then((activityDoc) => parseFirebaseActivity(activityDoc))
+      .then((firebaseActivity) => {
+        if (!firebaseActivity) return;
+        // Ziel: Den User aus dem Timslot UserID Array entfernen oder hinzufügen
+        let newTimeSlotsPerUser: ITimeSlot[] = newTimeSlotPerUserBasedOnItem(firebaseActivity, item, user);
+        setTimeSlotsPerUser(newTimeSlotsPerUser);
+        let updatedActivity: IActivity = {
+          ...firebaseActivity,
+          declinedUserUuids: firebaseActivity.declinedUserUuids.filter((userId) => userId !== user.id), // User aus den abgelehnten Nutzern entfernen
+          timeSlotsPerUserUuid: newTimeSlotsPerUser
+        };
+        setAcceptedOrOpenUserActivityStatus(newTimeSlotsPerUser);
+        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+          .catch((err) => firebaseErrorHandling(err));
+        // TODO: Kompletten Zeitslot löschen, wenn kein user mehr drin ist
+      })
+  }
+
+  const setAcceptedOrOpenUserActivityStatus = (newTimeSlotsPerUser: ITimeSlot[]) => {
+    let userIdContainedInTimeSlot = newTimeSlotsPerUser.map((slot) => slot.userUuid).flat().some((userId) => userId === user.id);
+    if (userIdContainedInTimeSlot) {
+      setUserActivityStatus("accepted");
+      // Füge den User zu den akzeptierten Nutzern hinzu, wenn er nicht schon drin ist
+      setAnyAcceptionUser((prev) => {
+        if (prev.map(u => u.id).includes(user.id)) {
+          return prev;
+        }
+        return [...prev, user];
+      });
+      // Lösche den user aus den anderen Listen
+      setOpenUser((prev) => prev.filter(u => u.id !== user.id));
+      setDeclinedUser((prev) => prev.filter(u => u.id !== user.id));
+    } else {
+      setUserActivityStatus("open");
+      // Füge den User zu den offenen Nutzern hinzu, wenn er nicht schon drin ist
+      setOpenUser((prev) => {
+        if (prev.map(u => u.id).includes(user.id)) {
+          return prev;
+        }
+        return [...prev, user];
+      });
+      // Lösche den user aus den anderen Listen
+      setAnyAcceptionUser((prev) => prev.filter(u => u.id !== user.id));
+      setDeclinedUser((prev) => prev.filter(u => u.id !== user.id));
+    }
+  }
+
+  const acceptAllTimeSlots = () => {
+    if (!activityId || !groupId) return;
+    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      .then((activityDoc) => parseFirebaseActivity(activityDoc))
+      .then((firebaseActivity) => {
+        if (!firebaseActivity) return;
+        // Zu allen Zeitslots den User hinzufügen
+        let newTimeSlotsPerUser: ITimeSlot[] = []
+        firebaseActivity.timeSlotsPerUserUuid.forEach((slot) => {
+          // ID bereits enthalten -> tue nichts
+          if (slot.userUuid.includes(user.id)) {
+            newTimeSlotsPerUser.push(slot);
+          } else { // ID nicht enthalten -> füge sie hinzu
+            newTimeSlotsPerUser.push({
+              ...slot,
+              userUuid: [...new Set([...slot.userUuid, user.id])] // User hinzufügen, wenn er nicht schon drin ist
+            });
+          }
+        })
+        setTimeSlotsPerUser(newTimeSlotsPerUser);
+        setAcceptedOrOpenUserActivityStatus(newTimeSlotsPerUser);
+        let updatedActivity: IActivity = {
+          ...firebaseActivity!,
+          declinedUserUuids: firebaseActivity.declinedUserUuids.filter((userId) => userId !== user.id), // User aus den abgelehnten Nutzern entfernen
+          timeSlotsPerUserUuid: newTimeSlotsPerUser
+        };
+        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+      })
+  }
+
+  const declineActivity = () => {
+    if (!activityId || !groupId) return;
+    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      .then((activityDoc) => parseFirebaseActivity(activityDoc))
+      .then((firebaseActivity) => {
+        if (!firebaseActivity) return;
+        if (!firebaseActivity.declinedUserUuids.includes(user.id)) {// User nicht in declined Users
+          setUserActivityStatus("declined");
+          setDeclinedUser((prev) => prev.some(u => u.id === user.id) ? prev : [...prev, user]);
+          setAnyAcceptionUser((prev) => prev.filter(u => u.id !== user.id));
+          setOpenUser((prev) => prev.filter(u => u.id !== user.id));
+          // User aus alles slots löschen
+          let timeSlotsWithoutCurrentUser = firebaseActivity.timeSlotsPerUserUuid.map((slot) => {
+            return {
+              ...slot,
+              userUuid: slot.userUuid.filter((userId) => userId !== user.id)
+            };
+          })
+          setTimeSlotsPerUser(timeSlotsWithoutCurrentUser);
+          let declinedUserAcitivity: IActivity = {
+            ...firebaseActivity!,
+            declinedUserUuids: [...new Set([...firebaseActivity.declinedUserUuids, user.id])],
+            timeSlotsPerUserUuid: timeSlotsWithoutCurrentUser
+          };
+          updateFirebaseDocument(declinedUserAcitivity, "Group", groupId, "Activity", declinedUserAcitivity.id)
+        }
+      })
+  }
+
+  const submittedNewTimeSlot = (timeInterval: ITimeInterval) => {
+    if (!activityId || !groupId) return;
+    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      .then((activityDoc) => parseFirebaseActivity(activityDoc))
+      .then((firebaseActivity) => {
+        if (!firebaseActivity) return;
+        // Füge den neuen Zeitslot hinzu
+        let timeSlot: ITimeSlot = {
+          userUuid: [user.id], // Der User, der den Zeitslot erstellt hat, ist automatisch drin
+          slots: timeInterval
+        };
+        let newTimeSlotsPerUser = [...firebaseActivity.timeSlotsPerUserUuid, timeSlot];
+        setTimeSlotsPerUser(newTimeSlotsPerUser);
+        setNewTimeSlotModalVisible(false);
+        let updatedActivity: IActivity = {
+          ...firebaseActivity,
+          timeSlotsPerUserUuid: newTimeSlotsPerUser
+        };
+        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+          .catch((err) => firebaseErrorHandling(err));
+      });
+  }
+
+  const cancelActivityPressed = () => {
+    if (!activityId || !groupId) return;
+    activityCancelConfirmationDialog(() => {
+      getFirebaseDocument(activityId, "Group", groupId, "Activity")
+        .then((activityDoc) => parseFirebaseActivity(activityDoc))
+        .then((firebaseActivity) => {
+          if (!firebaseActivity) return;
+          // Lösche die Activity
+          updateFirebaseDocument({ ...firebaseActivity, state: "cancelled" }, "Group", groupId, "Activity", firebaseActivity.id)
+            .then(() => router.replace("/activities/Activities")) // Gehe zurück
+            .catch((err) => firebaseErrorHandling(err));
+        });
+    })
+  }
+
+  const submitActivityPressed = () => {
+    if (!activityId || !groupId) return;
+    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      .then((activityDoc) => parseFirebaseActivity(activityDoc))
+      .then((firebaseActivity) => {
+        if (!firebaseActivity) return;
+        let scheduledActivity: IActivity = { ...firebaseActivity, state: "scheduled" }
+        updateFirebaseDocument(scheduledActivity, "Group", groupId, "Activity", firebaseActivity.id)
+          .then(() => router.replace({ pathname: "/activities/ScheduledActivity", params: { scheduledActivityStringified: JSON.stringify(scheduledActivity) } })) // Gehe zurück
+          .catch((err) => firebaseErrorHandling(err));
+      }).catch((err) => firebaseErrorHandling(err));
+  }
+
+  // TODO: Refresh button?
+  // TODO: Loading state
+  if (!activityId || !groupId) return <Text>LOADING</Text>;
+
   return (
-    <View>
-      <Text>ActivityDetail</Text>
-    </View>
+    <ScrollView style={theme.containers.rootContainer} showsVerticalScrollIndicator={false}>
+      <GoBack />
+      <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
+        <View>
+          <Pressable
+            style={{ borderWidth: 2, backgroundColor: userActivityStatus === "declined" ? theme.colors.error : "transparent", borderColor: theme.colors.error, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
+            onPress={() => declineActivity()}>
+            <uiIcon.ThumbDownIcon color={theme.colors.primary} size={40} />
+          </Pressable>
+        </View>
+        <View>
+          <Pressable
+            style={{ borderWidth: 2, backgroundColor: userActivityStatus === "accepted" ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
+            onPress={() => acceptAllTimeSlots()}>
+            <uiIcon.ThumbUpIcon color={theme.colors.primary} size={40} />
+          </Pressable>
+        </View>
+      </View>
+      <View style={theme.containers.centeredContainer}>
+        <Text style={theme.typography.heading1}>{activityName}</Text>
+      </View>
+      {/* Accepted Users */}
+      <View style={{ marginBottom: theme.spacing.medium }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={theme.typography.heading2}>{t("activities.acceptedUsers")}</Text>
+          <Switch
+            value={showNamesOrIcons === "names"}
+            onValueChange={() => setShowNamesOrIcons(showNamesOrIcons === "names" ? "icons" : "names")}
+            trackColor={{ false: theme.colors.secondary, true: theme.colors.primary }}
+            thumbColor={theme.colors.textLight}
+          />
+        </View>
+        <ShowUserIconOrName users={anyAcceptionUser} showNamesOrIcons={showNamesOrIcons} />
+      </View>
+      {/* Declined Users */}
+      <View style={{ marginBottom: theme.spacing.medium }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={theme.typography.heading2}>{t("activities.declinedUsers")}</Text>
+          <Switch
+            value={showNamesOrIcons === "names"}
+            onValueChange={() => setShowNamesOrIcons(showNamesOrIcons === "names" ? "icons" : "names")}
+            trackColor={{ false: theme.colors.secondary, true: theme.colors.primary }}
+            thumbColor={theme.colors.textLight}
+          />
+        </View>
+        <ShowUserIconOrName users={declinedUser} showNamesOrIcons={showNamesOrIcons} />
+      </View>
+      {/* Open users */}
+      <View style={{ marginBottom: theme.spacing.medium }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Text style={theme.typography.heading2}>{t("activities.openUsers")}</Text>
+          <Switch
+            value={showNamesOrIcons === "names"}
+            onValueChange={() => setShowNamesOrIcons(showNamesOrIcons === "names" ? "icons" : "names")}
+            trackColor={{ false: theme.colors.secondary, true: theme.colors.primary }}
+            thumbColor={theme.colors.textLight}
+          />
+        </View>
+        <ShowUserIconOrName users={openUser} showNamesOrIcons={showNamesOrIcons} />
+      </View>
+      {/* Activity Duration and Min Participants */}
+      <View style={{ marginBottom: theme.spacing.medium }}>
+        <Text style={theme.typography.heading2}>{t("planning.minParticipants")} & {t("planning.activityDuration")}</Text>
+        <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
+          <Text style={theme.typography.body}>{(activityMinParticipants)}</Text>
+          <Text style={theme.typography.body}>{activityDuration}</Text>
+        </View>
+      </View>
+      {/* Activity Description */}
+      <View style={{ marginBottom: theme.spacing.medium }}>
+        <Text style={theme.typography.heading2}>{t("planning.activityDescription")}</Text>
+        <Text style={theme.typography.body}>{activityDescription}</Text>
+      </View>
+      {/* Available Times */}
+      <View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+          <Text style={theme.typography.heading2}>{t("settings.availableTimes")}</Text>
+          <Pressable onPress={() => setNewTimeSlotModalVisible(true)}>
+            <uiIcon.PlusIcon size={30} color={theme.colors.primary} />
+          </Pressable>
+        </View>
+        <FlatList
+          data={timeSlotsPerUser}
+          scrollEnabled={false}
+          renderItem={({ item, index }) => (
+            <View key={index + "timeSlot"} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: theme.spacing.medium }} >
+              <View style={{ flexDirection: "column" }}>
+                <Text style={theme.typography.body}>{item.userUuid.length} / {activityMinParticipants}</Text>
+                <Text style={theme.typography.body}>
+                  {formatDateAndTimeSmall(item.slots.start, i18next.language)} - {formatDateAndTimeSmall(item.slots.end, i18next.language)}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: theme.spacing.medium }}>
+                <Pressable
+                  style={{ borderWidth: 2, backgroundColor: item.userUuid.includes(user.id) ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
+                  onPress={() => addOrRemoveUserFromTimeSlot(item)}
+                >
+                  <uiIcon.ThumbUpIcon size={30} color={theme.colors.primary} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+        />
+      </View>
+      <ActivityComments activityId={activityId} groupId={groupId} />
+      <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginBottom: theme.spacing.xlarge, gap: theme.spacing.small }}>
+        <TouchableHighlight style={[theme.button, { flex: 1 }]} onPress={() => cancelActivityPressed()}>
+          <View style={{ gap: theme.spacing.small, marginHorizontal: theme.spacing.medium, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+            <uiIcon.CancelIcon size={30} color={theme.colors.textLight} />
+            <Text style={[theme.buttonText]}>{t("activities.cancelActivity")}</Text>
+          </View>
+        </TouchableHighlight>
+        <TouchableHighlight style={[theme.button, { flex: 1 }]} onPress={() => submitActivityPressed()}>
+          <View style={{ gap: theme.spacing.small, marginHorizontal: theme.spacing.medium, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+            <uiIcon.FinishFlagIcon size={30} color={theme.colors.textLight} />
+            <Text style={theme.buttonText}>{t("activities.scheduleActivity")}</Text>
+          </View>
+        </TouchableHighlight>
+      </View>
+      <AvailableTimesModal modalVisible={newTimeSlotModalVisible} actionByParent={(timeSlot) => submittedNewTimeSlot(timeSlot)} />
+    </ScrollView>
   )
 }
 
+
+function newTimeSlotPerUserBasedOnItem(firebaseActivity: IActivity, item: ITimeSlot, user: ILocalUser) {
+  let newTimeSlotsPerUser: ITimeSlot[] = [];
+  firebaseActivity.timeSlotsPerUserUuid.forEach((firebaseTimeSlot) => {
+    if (isEqual(firebaseTimeSlot.slots.start, item.slots.start) && isEqual(firebaseTimeSlot.slots.end, item.slots.end)) {
+      // Wenn der Zeitslot gleich ist, dann den User hinzufügen oder entfernen
+      if (firebaseTimeSlot.userUuid.includes(user.id)) {
+        // User ist schon drin, also entfernen
+        let filteredUser = { ...firebaseTimeSlot, userUuid: [...new Set(firebaseTimeSlot.userUuid.filter((userId) => userId !== user.id))] };
+        newTimeSlotsPerUser.push(filteredUser);
+      } else {
+        // User ist nicht drin, also hinzufügen
+        newTimeSlotsPerUser.push({ ...firebaseTimeSlot, userUuid: [...new Set([...firebaseTimeSlot.userUuid, user.id])] });
+      }
+    } else { // Nicht betroffener Zeitslot, also unverändert lassen
+      newTimeSlotsPerUser.push({ ...firebaseTimeSlot });
+    }
+  });
+  return newTimeSlotsPerUser;
+}
+
+
+
 export default ActivityDetail
 
-const styles = StyleSheet.create({})

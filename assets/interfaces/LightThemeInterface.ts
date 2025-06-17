@@ -13,6 +13,7 @@ export interface ITheme {
     rightCornerIcon: IThemeRightCornerIcon;
 }
 
+
 interface IThemeLeftCornerIcon extends IThemeTopCornerIcon{
     left: number;
 }
@@ -31,6 +32,7 @@ interface IThemeContainer {
     rootContainer: IThemeRootContainer;
     leftAlignedContainer: IThemeAlignedContainer;
     centeredContainer: IThemeAlignedContainer;
+    headingWithIconContainer:IThemeHeadingWithIconContainer;
 }
 
 
@@ -66,6 +68,12 @@ interface IThemeAlignedContainer {
     alignItems?: ViewStyle["alignItems"];
 }
 
+interface IThemeHeadingWithIconContainer{
+    flexDirection: ViewStyle["flexDirection"],
+    justifyContent: ViewStyle["justifyContent"];
+    alignItems?: ViewStyle["alignItems"];
+}
+
 interface IThemeButton {
     backgroundColor: string;
     borderRadius: number;
@@ -75,6 +83,7 @@ interface IThemeButton {
 
 interface IThemeButtonText extends IText {
     color: string;
+    letterSpacing: number;
 }
 
 export interface IThemeTypography {
@@ -90,6 +99,8 @@ export interface IThemeColors {
     textLight: string;
     primary: string;
     secondary: string;
+    okay:string;
+    error:string
 }
 
 interface IText {

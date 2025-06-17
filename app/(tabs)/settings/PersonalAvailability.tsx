@@ -72,7 +72,7 @@ const PersonalAvailability = () => {
             <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.xlarge }]}>
                 <View style={styles.headingWithIconContainer}>
                     <Text style={theme.typography.heading2}>{t("settings.busyTimes")}</Text>
-                    <uiIcons.PlusIcon size={30} color="black" onPress={openBusyTimesModal} />
+                    <uiIcons.PlusIcon size={30} color={theme.colors.primary} onPress={openBusyTimesModal} />
                 </View>
                 {user.busy && hasBusyTimes ?
                     <ScrollView>
@@ -98,15 +98,15 @@ const PersonalAvailability = () => {
             <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.large }]}>
                 <View style={styles.headingWithIconContainer}>
                     <Text style={theme.typography.heading2}>{t("settings.availableTimes")}</Text>
-                    <uiIcons.PlusIcon size={30} color="black" onPress={openAvailableTimesModal} />
+                    <uiIcons.PlusIcon size={30} color={theme.colors.primary} onPress={openAvailableTimesModal} />
                 </View>
                 {user.available && hasAvailableTimes ? // TODO: Umstellen auf FlatList
                     <ScrollView>
                         {user.available.map((availableTime, index) => (
                             <View key={index} style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-start", gap: theme.spacing.small }}>
-                                <uiIcons.RemoveIcon size={24} color="black" onPress={() => removeEntry(availableTime, "available")} />
+                                <uiIcons.RemoveIcon size={24} color={theme.colors.primary} onPress={() => removeEntry(availableTime, "available")} />
                                 <View style={{ padding: theme.spacing.small, marginRight: theme.spacing.large, marginLeft: theme.spacing.small, backgroundColor: theme.colors.secondary, borderRadius: theme.borderRadius.small }}>
-                                    <uiIcons.CalendarWithOkIcon key={index} size={24} color="black" />
+                                    <uiIcons.CalendarWithOkIcon size={24} color={theme.colors.primary} />
                                 </View>
                                 <View style={{ flexGrow: 1 }}>
                                     <Text style={theme.typography.body}>{weekDays[availableTime.day]}</Text>
@@ -132,7 +132,7 @@ const PersonalAvailability = () => {
 
 export default PersonalAvailability
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create({ // TODO: mit bestehendem theme container austauschen
     headingWithIconContainer: {
         flexDirection: "row",
         justifyContent: "space-between",

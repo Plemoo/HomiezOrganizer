@@ -10,20 +10,29 @@ export const BusyAvailableTimesSchema = z.object({
 })
 
 const FirestoreTimestampSchema = z.object({
-  seconds: z.number(),
-  nanoseconds: z.number(),
+    seconds: z.number(),
+    nanoseconds: z.number(),
 });
 
 const DateOrFirestoreTimestamp = z.union([
-  z.date(),
-  FirestoreTimestampSchema
+    z.date(),
+    FirestoreTimestampSchema,
+    z.string()
 ]).transform((val) => {
-  if (val instanceof Date) return val;
-  // Firestore timestamp object
-  return new Date(val.seconds * 1000 + val.nanoseconds / 1e6);
+    if (val instanceof Date) return val;
+    if (typeof val === "string") {
+        const date = new Date(val); // This will throw if the string is not a valid date
+        if (isNaN(date.getTime())) {
+            throw new Error("Invalid date string");
+        } else {
+            return date;
+        }
+    }
+    // Firestore timestamp object
+    return new Date(val.seconds * 1000 + val.nanoseconds / 1e6);
 });
 
-const CommonUserSchema = z.object({
+export const CommonUserSchema = z.object({
     id: z.string(),
     available: z.array(BusyAvailableTimesSchema).optional(),
     birthday: DateOrFirestoreTimestamp.optional(), // You can also use z.date() if you want to handle Date objects
@@ -37,45 +46,80 @@ export const LocalUserSchema = CommonUserSchema.extend({
     language: z.union([z.literal("en"), z.literal("de")]).default(getDefaultLanguage())
 });
 
-export const DbUserSchema = CommonUserSchema;
-
-export const GroupSchema = z.object({
-    id: z.string(),
+export const DbGroupSchema = z.object({
     icon: z.string(),
     name: z.string(),
     description: z.string(),
     memberUuids: z.array(z.string()),
-    activityUuids: z.array(z.string())
 })
 
-const TimeIntervalSchema = z.object({
-    start: z.date(),
-    end: z.date()
-})
-
-const TimeSlotsPerUserSchema = z.object({
-    userUuid: z.string(),
-    slots: z.array(TimeIntervalSchema)
-})
-
-export const ActivitySchema = z.object({
+export const GroupSchema = DbGroupSchema.extend({
     id: z.string(),
+})
+
+export const TimeIntervalSchema = z.object({
+    start: DateOrFirestoreTimestamp,
+    end: DateOrFirestoreTimestamp
+})
+
+export const TimeSlotsPerUserSchema = z.object({
+    userUuid: z.array(z.string()),
+    slots: TimeIntervalSchema
+})
+
+export const ActivityDurationSchema = z.object({
+    days: z.number().optional(), 
+    hours: z.number().optional(), 
+    minutes: z.number().optional() 
+})
+
+export const DbActivitySchema = z.object({
     name: z.string(),
     description: z.string(),
+    destination: z.string(),
     memberUuids: z.array(z.string()),
-    owningGroupUuid: z.string(),
     minParticipants: z.number(),
-    duration: z.number(),
-    time: TimeIntervalSchema,
+    duration: ActivityDurationSchema,
+    time: TimeIntervalSchema.optional(),
     declinedUserUuids: z.array(z.string()),
     timeSlotsPerUserUuid: z.array(TimeSlotsPerUserSchema),
-    state: z.enum(["planning", "pending", "closed"])
+    state: z.enum(["scheduled", "pending", "closed","cancelled"]),
+    owningGroupId: z.string()
 })
+
+
+
+export const ActivitySchema = DbActivitySchema.extend({
+    id: z.string(),
+})
+
+export const DbCommentSchema = z.object({
+    userUuid: z.string(),
+    text: z.string(),
+    userIcon:z.string(),
+    userName: z.string(),
+    createdAt:DateOrFirestoreTimestamp
+})
+
+export const CommentSchema = DbCommentSchema.extend({
+    id: z.string(),
+})
+
+export const DbInvitationSchema = z.object({
+    groupId: z.string(),
+    createdAt: DateOrFirestoreTimestamp
+})
+
+export const InvitationSchema = DbInvitationSchema.extend({
+    id: z.string(),
+})
+
+
 
 
 export function zodErrorLogging(error: any) {
     if (error instanceof ZodError) {
         console.error(`Error during zod parse: ${error.errors.map(e => e.message + " for " + e.path.join(".")).join(" - ")}`)
     }
-    console.error("Unknonw Error",error);
+    console.error("Unknown Error", error);
 }

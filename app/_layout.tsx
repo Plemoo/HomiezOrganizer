@@ -10,6 +10,7 @@ export default function RootLayout() {
         <SafeAreaView style={{ flex: 1 }}>
           <Stack initialRouteName="Startpage" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Startpage" />
+            <Stack.Screen name="Join" />
             <Stack.Screen name="(tabs)" />
           </Stack>
         </SafeAreaView>

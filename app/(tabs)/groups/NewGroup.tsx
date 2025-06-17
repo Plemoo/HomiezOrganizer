@@ -1,5 +1,6 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
+import { IDbGroup } from '@/assets/interfaces/GroupInterface';
 import { addDocumentToCollection } from '@/assets/ts/firebaseExchange';
 import GoBack from '@/components/GoBack';
 import { useUser } from '@/components/ProfileInformationContext';
@@ -28,17 +29,21 @@ const NewGroup = () => {
   const uiIcons = useUiIcons();
 
   useEffect(() => {
-    setGroupIcon(getRandomAvatarKey);
-    return ()=>{
-      console.log("NewGroup unmounted")
-    }
+    console.log("AVATAR", getRandomAvatarKey())
+    setGroupIcon(getRandomAvatarKey());
   }, [])
 
   const changeGroupIcon = () => {
+    //TODO: Implementieren
   }
 
+
+  // TODO: Leave Group einbauen
+
   const submitNewGroup = () => {
-    makeSureUserIsLoggedIn(user).then((loggedInUser) => {
+    makeSureUserIsLoggedIn(user)
+    .then((loggedInUser) => {
+      console.log("Group Icon submit", groupIcon)
       return {
         name: groupName,
         description: groupDescription,
@@ -46,7 +51,7 @@ const NewGroup = () => {
         memberUuids: [loggedInUser.id],
         icon: groupIcon
       }
-    }).then((newGroup) => {
+    }).then((newGroup:IDbGroup) => {
       return addDocumentToCollection('Group', newGroup)//
     }).then((groupRef) => {
       let newUserWithGroup = { ...user }
@@ -55,7 +60,6 @@ const NewGroup = () => {
       } else {
         newUserWithGroup.groupUuids = [groupRef.id];
       }
-      console.log("new user", newUserWithGroup)
       setUserIncludingLocalStorageAndFirebase(newUserWithGroup)
       return newUserWithGroup.groupUuids
     }).then((allGroupsOfUser)=>router.replace({pathname:"/(tabs)/groups/Groups",params:{userGroupIds:JSON.stringify(allGroupsOfUser)}}))
