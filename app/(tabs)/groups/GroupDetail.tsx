@@ -1,16 +1,18 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IActivity } from '@/assets/interfaces/ActivityInterface';
+import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { IGroup } from '@/assets/interfaces/GroupInterface';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
-import { getCombinedArrayWithUniqueActivities, sortActivitiesByDueDate } from '@/assets/ts/componentFunctions/activities';
-import { getAllDocumentsOfCollection, getFirebaseDocument, getFirebaseDocumentArray } from '@/assets/ts/firebaseExchange';
+import { sortActivitiesByDueDate } from '@/assets/ts/componentFunctions/activities';
+import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { createInviteLink } from '@/assets/ts/groupInvite';
 import { parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
-import { ActivitySchema, GroupSchema, zodErrorLogging } from '@/assets/ts/schemas';
+import { ActivitySchema, zodErrorLogging } from '@/assets/ts/schemas';
 import ActivityListItem from '@/components/ActivityListItem';
 import GoBack from '@/components/GoBack';
 import { Hint } from '@/components/Hint';
+import LoadingDots from '@/components/Loading';
 import ShowUserIconOrName from '@/components/ShowUserIconOrName';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
@@ -35,28 +37,21 @@ const GroupDetail = () => {
   const isFocused = useIsFocused();
   const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
   const [hintMessage, setHintMessage] = useState<string | null>(null)
-  const { groupIdString } = useLocalSearchParams<{ groupIdString: string }>();
+  const { groupIdParameter }: IFirebaseSearchParameter = useLocalSearchParams(); // this is set when the user is transferred from Join
 
-  //TODO: Bei zukünfigte Aktivitäten ein plus um zur planung zur kommen
-  // TODO: Text unter User Icon nicht anzeigen, stattdessen über onclick arbeiten oder switch einbauen, der nur namen oder nur icons anzeigt
   useEffect(() => {
-    if (!groupIdString) {  // Force go back when groupObjectString is not correct
+    if (!groupIdParameter) {  // Force go back when groupObjectString is not correct
       router.replace('/(tabs)/groups/Groups')
     }
-    getFirebaseDocument(groupIdString, "Group")
+    FirebaseExchange.getFirebaseDocument(groupIdParameter!, "Group")
       .then((groupDoc) => {
         const group = parseFirebaseGroup(groupDoc);
-        if (groupDoc.exists()) {
-          try {
-            return GroupSchema.parse({ id: groupDoc.id, ...groupDoc.data() });
-          } catch (err) {
-            zodErrorLogging(err)
-            router.replace('/(tabs)/groups/Groups');
-            throw new Error("parsing Error");
-          }
+        if (group === null) {
+          router.replace('/(tabs)/groups/Groups');
+          throw new Error("GroupdocError");
+        } else {
+          return group;
         }
-        router.replace('/(tabs)/groups/Groups');
-        throw new Error("GroupdocError");
       })
       .then((group: IGroup | null) => {
         if (group) {
@@ -73,27 +68,23 @@ const GroupDetail = () => {
           return [...prevMembers, ...newMembers];
         });
         if (Array.isArray(allActivitiesOfGroup)) {
-          setUpcommingActivities(prev =>
-            getCombinedArrayWithUniqueActivities(
-              prev,
-              allActivitiesOfGroup.filter(activity => activity.state === "pending" || activity.state === "scheduled")
-            ).sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2))
-          );
-          setPastActivities(prev => getCombinedArrayWithUniqueActivities(
-            prev,
+          setUpcommingActivities(allActivitiesOfGroup.filter(activity => activity.state === "pending" || activity.state === "scheduled")
+            .sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2)));
+          setPastActivities(
             allActivitiesOfGroup.filter(activity => activity.state === "closed" || activity.state === "cancelled")
-          ).sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2)));
+              .sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2))
+          );
         }
       })
       .catch((err) => console.error("Error during Group Detail firebase loading", err))
       .finally(() => setLoading(false))
-  }, [groupIdString, isFocused]);
+  }, [groupIdParameter, isFocused]);
 
 
 
   // TODO: Test schreiben
   const fetchFirebaseGroupActivities = useCallback((selectedGroup: IGroup): Promise<IActivity[]> => {
-    return getAllDocumentsOfCollection('Group', selectedGroup.id, "Activity")
+    return FirebaseExchange.getAllDocumentsOfCollection('Group', selectedGroup.id, "Activity")
       .then((allActivities) => {
         return allActivities.docs.filter((docRef) => docRef.exists())
           .map((doc): IActivity | null => {
@@ -108,10 +99,9 @@ const GroupDetail = () => {
       })
   }, [])
 
-  // TODO: Abbruch bei fehlender Berechtigung auch im Catch und redirect abfangen
   // TODO: Test schreiben
   const fetchtGroupMembers = useCallback((selectedGroup: IGroup): Promise<ILocalUser[]> => {
-    return getFirebaseDocumentArray(selectedGroup.memberUuids, 'User')//
+    return FirebaseExchange.getFirebaseDocumentArray(selectedGroup.memberUuids, 'User')//
       .then((docRefArray) => {
         return docRefArray
           .map((doc) => parseFirebaseUser(doc))//
@@ -122,18 +112,18 @@ const GroupDetail = () => {
   const sendGroupInvite = () => {
     if (!group) return;
     createInviteLink(group.id)
-    .then((inviteLink)=>{
-      return Clipboard.setStringAsync(inviteLink)
-    }).then(isLinkSet=>{
-      if(isLinkSet){
-        setHintMessage(t("groups.groupLinkShareSuccess"));
-      }else{
-        setHintMessage(t("groups.groupLinkShareError"));
-      }
-    }).catch(()=>setHintMessage(t("groups.groupLinkShareError")))
+      .then((inviteLink) => {
+        return Clipboard.setStringAsync(inviteLink)
+      }).then(isLinkSet => {
+        if (isLinkSet) {
+          setHintMessage(t("groups.groupLinkShareSuccess"));
+        } else {
+          setHintMessage(t("groups.groupLinkShareError"));
+        }
+      }).catch(() => setHintMessage(t("groups.groupLinkShareError")))
   }
 
-  if (loading) return <Text>IsLoading</Text>;
+  if (loading) return <LoadingDots visible />;
 
   return (
 
@@ -142,15 +132,15 @@ const GroupDetail = () => {
         <Hint
           message={hintMessage}
           onHide={() => setHintMessage(null)}
-          textStyle={[theme.typography.heading3,{color:theme.colors.secondary}]}
+          textStyle={[theme.typography.heading3, { color: theme.colors.secondary }]}
         />
       )}
       <View style={[theme.containers.leftAlignedContainer, { gap: theme.spacing.medium }]}>
         <GoBack />
         <uiIcon.LinkIcon size={30} color={theme.colors.primary} style={theme.rightCornerIcon} onPress={() => sendGroupInvite()} />
-        <View style={{ flexDirection: "row", justifyContent: "flex-start", gap: theme.spacing.medium, marginHorizontal: 40}}>
+        <View style={{ flexDirection: "row", justifyContent: "flex-start", gap: theme.spacing.medium, marginHorizontal: 40 }}>
           <Image style={{ width: 50, height: 50 }} source={avatars[group!.icon]} />
-          <Text style={[theme.typography.heading1,{flexShrink:1}]}>{group?.name}</Text>
+          <Text style={[theme.typography.heading1, { flexShrink: 1 }]}>{group?.name}</Text>
         </View>
         <View>
           <Text style={theme.typography.heading2}>{t("groups.groupDescription")}</Text>
@@ -182,7 +172,7 @@ const GroupDetail = () => {
               <ActivityListItem
                 key={index + "future"}
                 activity={item}
-                activityIcon={item.state === "pending" ? <uiIcon.CalendarWithClockIcon size={30} color={theme.colors.primary} /> : <uiIcon.CalendarWithOkIcon size={24} color={theme.colors.primary} />}
+                activityIcon={item.state === "pending" ? <uiIcon.CalendarWithClockIcon size={30} color={theme.colors.primary} /> : <uiIcon.CalendarWithOkIcon size={30} color={theme.colors.primary} />}
               />
             }
             ListEmptyComponent={
@@ -202,7 +192,7 @@ const GroupDetail = () => {
               <ActivityListItem
                 key={index + "past"}
                 activity={item}
-                activityIcon={item.state === "cancelled"?<uiIcon.CancelIcon size={30} color={theme.colors.primary} />:<uiIcon.HistoryClockIcon size={30} color={theme.colors.primary} />}
+                activityIcon={item.state === "cancelled" ? <uiIcon.CancelIcon size={30} color={theme.colors.primary} /> : <uiIcon.HistoryClockIcon size={30} color={theme.colors.primary} />}
               />
 
             }
@@ -220,4 +210,3 @@ const GroupDetail = () => {
 }
 
 export default GroupDetail
-

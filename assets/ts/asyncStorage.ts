@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import _ from "lodash";
 import { z } from 'zod';
 import { IBusyAvailableTimes, ILocalUser } from "../interfaces/ProfileInterface";
-import { BusyAvailableTimesSchema, LocalUserSchema, zodErrorLogging } from './schemas';
+import { BusyAvailableTimesSchema, LocalUserSchema } from './schemas';
 
 type TSecureStoreValueType = string | Date | IBusyAvailableTimes[] | string[];
 
@@ -19,7 +19,7 @@ export class SecureStorageHandler {
 
 
   protected static overwriteSecureStore = (secureStoreKey: (keyof ILocalUser), secureStoreValue: TSecureStoreValueType): Promise<(keyof ILocalUser)> => {
-    let stringLocalUserKeys: (keyof ILocalUser)[] = ["id", "username", "icon", "language"];
+    let stringLocalUserKeys: (keyof ILocalUser)[] = ["id", "username", "icon", "language", "expoPushToken"];
     let dateLocalUserKeys: (keyof ILocalUser)[] = ["birthday"];
     let timeArrayLocalUserKeys: (keyof ILocalUser)[] = ["busy", "available"];
     let stringArrayLocalUserKeys: (keyof ILocalUser)[] = ["groupUuids"];
@@ -57,34 +57,38 @@ export class SecureStorageHandler {
             }
           }
         }
-        return Promise.all(secureStorageOverwritePromises)//
+        return Promise.all(secureStorageOverwritePromises)
       })
   }
 
   static getUserStoredInSecureStore = async (): Promise<ILocalUser | null> => {
-    const localStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language"];
+    const localStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language", "expoPushToken"];
     const localStoragePromises = localStorageKeys.map((key) => SecureStore.getItemAsync(key));
     const localStorageValues = await Promise.all(localStoragePromises);
     const retrievedData: Record<string, any> = {};
     localStorageKeys.forEach((key, index) => {
       if (localStorageValues[index] !== null) {
-        if (key === "available" || key === "busy" || key === "groupUuids") {
-          try {
+        try {
+          if (key === "available" || key === "busy" || key === "groupUuids") {
             retrievedData[key] = JSON.parse(localStorageValues[index]);
-          } catch (error) {
-            // just skip the parse
-            console.error(`Error parsing JSON for key ${key} and value ${localStorageValues[index]}: ${error}`);
+          } else if (key === "birthday") {
+            retrievedData[key] = new Date(localStorageValues[index]);
+          } else if (key === "id" || key === "username" || key === "icon" || key === "language" || key === "expoPushToken") {
+            retrievedData[key] = localStorageValues[index];
+          } else {
+            throw new Error(`Unsupported key ${key} in Secure Storage`);
           }
-        } else if (key === "birthday") {
-          retrievedData[key] = new Date(localStorageValues[index]);
-        } else if (key)
-          retrievedData[key] = localStorageValues[index];
+        } catch (error) {
+          // just skip the parse
+          console.error(`Error parsing JSON for key ${key} and value ${localStorageValues[index]}: ${error}`);
+          return null;
+        }
       }
     });
     try {
       return LocalUserSchema.parse(retrievedData);
     } catch (error) {
-      zodErrorLogging(error)
+      console.error("Error parsing user data from Secure Storage:", error);
       // Throwing an error here, means the user in the Secure Storage is corrupt
       return null;
     }

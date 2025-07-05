@@ -1,5 +1,11 @@
-import { t } from "i18next";
-import { IDuration } from "../interfaces/ActivityInterface";
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
+import * as Localization from 'expo-localization';
+import i18next, { t } from "i18next";
+import { IDuration, ITimeSlot } from "../interfaces/ActivityInterface";
+
 
 export function formatDate(date: Date, language: string): string {
   if (!(date instanceof Date) || isNaN(date.getTime())) {
@@ -66,3 +72,25 @@ export function formatDateForRnCalendar(d: Date): string {
   const dd = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${dd}`
 }
+
+export function isDurationLongerThanAnyTimeSlot(durationDays?: number, durationHours?: number, durationMinutes?: number, timeSlot?: ITimeSlot[]): boolean {
+  if (!timeSlot || timeSlot.length === 0) return false;
+
+  const totalDurationInMinutes = (durationDays || 0) * 24 * 60 + (durationHours || 0) * 60 + (durationMinutes || 0);
+  return timeSlot.some(slot => {
+    const start = dayjs(slot.slots.start);
+    const end = dayjs(slot.slots.end);
+    return totalDurationInMinutes > end.diff(start, 'minute');// Duration bigger than time slot -> error
+  });
+}
+
+dayjs.extend(relativeTime);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Set phone's locale
+const phoneLanguage = Localization.getLocales()[0].languageCode;
+dayjs.locale(phoneLanguage ? phoneLanguage : i18next.language.split('-')[0]);
+
+export { dayjs };
+

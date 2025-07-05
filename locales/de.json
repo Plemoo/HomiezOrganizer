@@ -30,6 +30,12 @@
     "emptyCommentsText": "Noch keine Bemerkungen. Sei der Erste, der eine Bemerkung schreibt!",
     "scheduleActivity": "Aktivität ansetzen",
     "cancelActivity": "Aktivität abbrechen",
+    "scheduledActivityEmptyText": "Keine bevorstehenden Aktivitäten. Sobald die Aktivität geplant ist, ist sie hier zu sehen.",
+    "pendingActivityEmptyText": "Keine offenen Aktivitäten. Erstelle eine neue Aktivität um sie hier zu sehen.",
+    "noValidTimeSlot": "Kein Zeitslot existiert, in dem die Mindestanzahl an Teilnehmern verfügbar ist.",
+    "noValidTimeSlotTitle": "Kein gültiger Zeitslot",
+    "chooseTimeSlot": "Wähle den Zeitslot zu welchem die Aktivität stattfinden soll.",
+    "activityDetails":"Details",
     "cancelDialog": {
       "cancel": "Zurück",
       "yesIamSure": "Ja, ich bin mir sicher",
@@ -58,7 +64,17 @@
     "minParticipants": "Mindestteilnehmerzahl",
     "minParticipantsInput": "Anzahl damit Aktivität stattfindet",
     "noGroupSelected": "Selektiere eine Gruppe",
-    "until": "bis"
+    "until": "bis",
+    "submitWarnings": {
+      "warnNoActivityName": "Bitte gib einen Namen für die Aktivität ein.",
+      "warnNoActivityDestination": "Bitte gib ein Ziel für die Aktivität ein.",
+      "warnNoActivityDescription": "Bitte gib eine Beschreibung für die Aktivität ein.",
+      "warnNoActivityGroup": "Bitte wähle eine Gruppe für die Aktivität aus.",
+      "warnNoMinParticipants": "Bitte gib die Mindestanzahl an Teilnehmern ein.",
+      "warnNoTimeSlot": "Bitte wähle einen Zeitrahmen für die Aktivität aus.",
+      "warnNoDuration": "Bitte gib eine Dauer für die Aktivität ein.",
+      "warnDurationLongerThanTimeSlot": "Bitte stelle sicher, dass die Zeiträume größer sind als die Dauer der Aktivität."
+    }
   },
   "settings": {
     "settingsTitle": "Einstellungen",

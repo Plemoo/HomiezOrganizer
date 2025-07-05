@@ -5,7 +5,7 @@ import React, { JSX } from 'react'
 import { FlatList, Text, View } from 'react-native'
 import { useCustomTheme } from './ThemeContext'
 
-const ShowUserIconOrName = ({users, showNamesOrIcons}: {users: ILocalUser[], showNamesOrIcons: "names" | "icons"}): JSX.Element | null => {
+const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], showNamesOrIcons: "names" | "icons" }): JSX.Element | null => {
     const { avatars } = useAvatarIcons()
     const { theme } = useCustomTheme();
 
@@ -17,6 +17,8 @@ const ShowUserIconOrName = ({users, showNamesOrIcons}: {users: ILocalUser[], sho
                 key={"icons"}
                 keyExtractor={u => u.id + "icon"}
                 scrollEnabled={false}
+                // contentContainerStyle={{flex:1, alignItems: "baseline", backgroundColor:"red", gap:20}}
+                columnWrapperStyle={{ justifyContent: "space-around", alignItems: "center" }}
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
                     <View key={index + "activityMemberIcon"}>
@@ -29,8 +31,9 @@ const ShowUserIconOrName = ({users, showNamesOrIcons}: {users: ILocalUser[], sho
                     </View>
                 )}
             />
-        )}
-        if(showNamesOrIcons === "names") {
+        )
+    }
+    if (showNamesOrIcons === "names") {
         return (
             <FlatList
                 data={users}
@@ -38,6 +41,7 @@ const ShowUserIconOrName = ({users, showNamesOrIcons}: {users: ILocalUser[], sho
                 key={"names"}
                 keyExtractor={u => u.id + "name"}
                 scrollEnabled={false}
+                columnWrapperStyle={{ justifyContent: "space-around", alignItems: "center" }}
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
                     <View key={index + "activityMemberName"}>
@@ -50,4 +54,4 @@ const ShowUserIconOrName = ({users, showNamesOrIcons}: {users: ILocalUser[], sho
     return null;
 }
 
-    export default ShowUserIconOrName
+export default ShowUserIconOrName

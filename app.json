@@ -4,10 +4,16 @@
     "slug": "HomiesOrganizer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/other/homiesOrganizer.png",
     "scheme": "homiesorganizer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "9b75a12e-e96f-4f25-9f29-ca766b90d6d1"
+      },
+      "router": {}
+    },
     "platforms": [
       "android",
       "ios"
@@ -17,31 +23,49 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.homiesorganizer.app",
-      "buildNumber": "1.0.0"
+      "bundleIdentifier": "com.homiesOrganizer",
+      "googleServicesFile": "./secure/GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/other/homiesOrganizer.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.homiesorganizer.app",
-      "versionCode": 1
+      "googleServicesFile": "./secure/google-services.json",
+      "package": "com.homiesOrganizer"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/other/homiesOrganizer.png",
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/other/homiesOrganizerNotification.png",
+          "color": "#FFFFFF",
+          "channelId": "default",
+          "useNextNotificationApi": true
+        }
+      ],
+      "expo-web-browser",
+      "expo-dev-client",
+      [
+        "@react-native-firebase/app",
+        {}
+      ],
+      [
+        "@react-native-firebase/auth",
+        {}
+      ]
     ],
     "experiments": {
       "typedRoutes": true

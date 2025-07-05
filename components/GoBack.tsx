@@ -12,7 +12,11 @@ const GoBack:React.FC<{backTarget?:Href}> = ({backTarget}) => {
         if(backTarget){
             router.push(backTarget);
         }else{
-            router.back()
+            if(router.canGoBack()){
+                router.back();
+            }else{
+                router.push("/(tabs)/activities/Activities")
+            }
         }
     }
     return (

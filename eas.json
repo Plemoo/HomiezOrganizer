@@ -1,0 +1,19 @@
+{
+    "cli": {
+        "version": ">= 3.19.0",
+        // Auto increments the version number for production builds
+        "appVersionSource": "remote"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal"
+        },
+        "production": {
+            "autoIncrement": true,
+            "android": {
+                "buildType": "app-bundle"
+            }
+        }
+    }
+}

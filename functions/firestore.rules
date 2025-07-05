@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {   
+  match /databases/{database}/documents {
+    // Nutzer ist registriert, wenn es ein passendes Dokument in /users gibt
+    function isAuthenticatedUser() {
+      return exists(/databases/$(database)/documents/User/$(request.auth.uid));
+    }
+    match /Group/{groupId} {
+    	// Nur registrierte User dürfen neue Dokumente anlegen
+      allow create: if isAuthenticatedUser();
+      // Update für Gruppen, nur für das memberUuids Feld
+      allow update: if isAuthenticatedUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUuids']);
+      // Zugriff nur auf Gruppen wovon man bereits Member ist
+      allow read, delete: if request.auth.uid in resource.data.memberUuids;
+      match /Invitation/{invitaitonId} {
+        // only members can create invites
+        allow create: if request.auth.uid in 
+          get(/databases/$(database)/documents/Group/$(groupId)).data.memberUuids;
+        // anyone (even unauthenticated) can read an invite to redeem
+        allow read: if true;
+        // only your client‐run transaction can increment uses
+        allow update: if false;
+      }
+    }
+    match /{parent=**}/Activity/{activityId}{
+      allow read, write: if isAuthenticatedUser();
+    }
+    match /Group/{groupId}/Activity/{activityId}/Comment/{commentId}{
+      allow create, read, delete: if isAuthenticatedUser();
+    }
+    // Zugriff auf eigene User-Daten
+    match /User/{uid} {
+      allow write: if isAuthenticatedUser() && request.auth.uid == uid;
+      allow read: if isAuthenticatedUser();     
+    }
+    // Alle dürfen neue User erstellen
+    match /User/{uid} {
+  		allow create: if request.auth != null && request.resource.data.id == request.auth.uid;
+    }
+  }
+}

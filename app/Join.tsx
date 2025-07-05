@@ -1,49 +1,56 @@
-import { redeemInvite } from '@/assets/ts/groupInvite'
+import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface'
+import { IGroup } from '@/assets/interfaces/GroupInterface'
+import { IJoinLinkSearchParams } from '@/assets/interfaces/JoinInterface'
+import { ILocalUser } from '@/assets/interfaces/ProfileInterface'
+import { FirebaseExchange } from '@/assets/ts/firebaseExchange'
+import LoadingDots from '@/components/Loading'
 import { useUser } from '@/components/ProfileInformationContext'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { UnknownInputParams, useLocalSearchParams, useRouter } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, Text, View } from 'react-native'
 
 export default function JoinPage() {
-    const allParames = useLocalSearchParams()
-    const { groupId, inviteCode } = useLocalSearchParams<{
-        groupId: string
-        inviteCode: string
-    }>()
+    const { groupId, inviteCode }: IJoinLinkSearchParams = useLocalSearchParams()
     const router = useRouter()
     const [loading, setLoading] = useState(true)
-    const { user } = useUser();
-
+    const { user, userLoading } = useUser();
+    // TODO: LOggings ausbauen und Fehlermeldungen lokalisieren
     useEffect(() => {
-        console.log("ALL SEARCH PARAMS",allParames )
-        console.log("join group", groupId, inviteCode, user)
-        console.log("user",user)
-        console.log("group", groupId)
-        console.log("invite",inviteCode)
-        if (!groupId || !inviteCode || !user) {
-            Alert.alert('Could not join group')
+        if (userLoading) return // wait for user to be loaded
+        if (!groupId || !inviteCode || !user || !user.id) {
             router.replace('..')
             return
         }
-        redeemInvite(groupId, inviteCode, user.id)
+        // TODO: Invite lesen und prüfen ob der DB Eintrag nicht schon zu alt ist
+        redeemInvite(groupId, user.id)
             .then(() => {
+                let searchParams: IFirebaseSearchParameter = {
+                    groupIdParameter: groupId
+                }
                 // success → navigate into the group screen
-                router.replace({ pathname: '/(tabs)/groups/GroupDetail', params: { groupIdString: groupId } })
+                router.replace({ pathname: '/(tabs)/groups/GroupDetail', params: searchParams as UnknownInputParams })
             })
-            .catch((err:any) => {
-                Alert.alert('Could not join group', err)
+            .catch((err: any) => {
+                console.error("Error redeeming invite:", err);
                 router.replace('..')
             })
             .finally(() => setLoading(false))
-    }, [groupId, inviteCode])
+    }, [groupId, inviteCode, userLoading]);
 
-    if (loading) {
-        return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator />
-                <Text>Joining group…</Text>
-            </View>
-        )
+
+    const redeemInvite = async (groupId: string, userId: string) => {
+        if (user && user.groupUuids && user.groupUuids.includes(groupId)) {
+            // User is already in the group, so just return
+            console.warn("User is already a member of the group, no need to redeem invite.");
+            return;
+        }
+        const userGroupId: keyof ILocalUser = "groupUuids";
+        const groupMemberIds: keyof IGroup = "memberUuids";
+        // no await, to throw exceptions in the catch block of the redeemInvite function
+        FirebaseExchange.addFirestoreValueToArray(userId, "User", userGroupId, groupId)
+        FirebaseExchange.addFirestoreValueToArray(groupId, "Group", groupMemberIds, userId)
     }
+
+    if (loading) return <LoadingDots visible />
+
     return null
 }

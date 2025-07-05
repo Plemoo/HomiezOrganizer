@@ -1,0 +1,263 @@
+import { Expo, ExpoPushMessage } from 'expo-server-sdk'
+import * as admin from 'firebase-admin'
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
+admin.initializeApp()
+const expo = new Expo()
+
+const activityCollectionString = "Activity";
+const groupCollectionString = "Group";
+const commentCollectionString = "Comment";
+const userCollectionString = "User";
+// const invitationCollectionString: TAvailableFirebaseSubCollections = "Invitation";
+const groupIdString = "{groupId}";
+const activityIdString = "{activityId}";
+const commentIdString = "{commentId}";
+const bodyCharacterLimit = 150; // Limit for the body of the notification
+// const invitationIdString = "{invitationId}";
+
+
+// IDEEN:
+// - Füge eine Benachrichtigung hinzu, wenn ein Benutzer einer Gruppe beitritt oder sie verlässt
+// - Sende Erinnerungen für bevorstehende Aktivitäten
+// - Benachrichtigung wenn neuer Zeitslot hinzugefügt wird
+
+/**
+ * Send notification if activity is scheduled or closed
+ */
+export const sendActivityStateChangeNotification = onDocumentUpdated(
+    {
+        document: groupCollectionString + "/" + groupIdString + "/" + activityCollectionString + "/" + activityIdString,
+        region: "europe-west3"
+    },
+    async event => {
+        console.log("Cloud Function: sendActivityStateChangeNotification called");
+        try {
+            if (!event) throw new Error("No event data in cloud function:sendActivityStateChangeNotification")
+            const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
+            if (!snap) throw new Error("No data in cloud function, nothing to do");
+            if (!snap.before || !snap.after) throw new Error("No before or after data in snapshot:sendActivityStateChangeNotification");
+            const beforeChange = snap.before.data() // type assertion to IDbActivity
+            const afterChange = snap.after.data() // type assertion to IDbActivity
+            const activityIdPara = event.params.activityId//[activityIdString]
+            const groupIdPara = event.params.groupId//[groupIdString]
+            const db = admin.firestore();
+            // Aktivität angesetzt/gestartet
+            if (beforeChange.state === "pending" && afterChange.state === "scheduled") {
+                const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+                let expoPushNotifications: ExpoPushMessage[] = [];
+                if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when activity is scheduled`);
+                for (const user of users) {
+                    if (!user || !user.expoPushToken) continue;
+                    const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " findet statt" : "Activity " + afterChange.name + " scheduled";
+                    let notificationBody = user.language === "de" ? "Navigiere zur Aktivität für Details" : "Navigate to the activity for details";
+                    if (afterChange.time && afterChange.time.start && afterChange.time.end) {
+                        let startOfScheduledTime = afterChange.time.start.toDate();
+                        let endOfScheduledTime = afterChange.time.end.toDate();
+                        const formattedStart = formatDateAndTime(startOfScheduledTime, user.language || "de");
+                        const formattedEnd = formatDateAndTime(endOfScheduledTime, user.language || "de");
+                        notificationBody = user.language === "de" ? `Die Aktivität findet am ${formattedStart} bis ${formattedEnd} statt` : `The activity is scheduled for ${formattedStart} to ${formattedEnd}`;
+                    }
+                    const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityScheduled", groupIdPara, activityIdPara);
+                    expoPushNotifications.push(newNotification);
+                }
+                if (expoPushNotifications.length !== 0) {
+                    console.log("Publishing Expo push messages for activity state change:", expoPushNotifications.length);
+                    publishExpoPushMessage(expoPushNotifications)
+                } else {
+                    throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is scheduled`);
+                }
+            } else if (beforeChange.state === "pending" && afterChange.state === "cancelled") {
+                const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+                let expoPushNotifications: ExpoPushMessage[] = [];
+                if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} for activity cancellation`);
+                for (const user of users) {
+                    if (!user || !user.expoPushToken) continue;
+                    const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " abgesagt" : "Activity " + afterChange.name + " cancelled";
+                    let notificationBody = user.language === "de" ? "Die Aktivität ist jetzt abgesagt" : "The activity is now cancelled";
+                    const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityCancelled", groupIdPara, activityIdPara);
+                    expoPushNotifications.push(newNotification);
+                }
+                if (expoPushNotifications.length !== 0) {
+                    console.log("Publishing Expo push messages for activity state change:", expoPushNotifications.length);
+                    publishExpoPushMessage(expoPushNotifications)
+                } else {
+                    throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is cancelled`);
+                }
+            }
+        } catch (error) {
+            console.error("Error in sendActivityStateChangeNotification function:", error);
+        }
+    }
+)
+
+/**
+ * Send notification to whole group when a new comment is added to an activity
+ */
+export const sendNewCommentForActivityNotification = onDocumentCreated(
+    {
+        document: groupCollectionString + "/" + groupIdString + "/" + activityCollectionString + "/" + activityIdString + "/" + commentCollectionString + "/" + commentIdString,
+        region: "europe-west3"
+    },
+    async event => {
+        try {
+            console.log("Cloud Function: sendNewCommentForActivityNotification called");
+            if (!event) throw new Error("No event data in cloud function:sendNewCommentForActivityNotification");
+            const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
+            if (!snap) throw new Error("No data in cloud function, nothing to do");
+            const comment = snap.data()
+            const activitySnap = await snap.ref.parent.parent?.get();
+            const activityIdPara = event.params.activityId
+            const groupIdPara = event.params.groupId
+            const db = admin.firestore();
+            const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+            let expoNotifications: ExpoPushMessage[] = [];
+            if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara}`);
+            for (const user of users) {
+                if (!user || !user.expoPushToken) continue;
+                if (!user.id || !comment.userUuid || user.id === comment.userUuid) continue; // Do not send notification to the user who wrote the comment
+                const language = user.language || "en"; // Default to English if no language is set
+                let notificationTitle = language === "de" ? "Neues Kommentar" : "New comment";
+                if (activitySnap && activitySnap.exists && activitySnap.data()?.name) {
+                    notificationTitle += " in " + activitySnap.data()!.name;
+                }
+                let notificationBody = comment.userName + ": " + (comment.text.length > bodyCharacterLimit ? comment.text.substring(0, bodyCharacterLimit) + "..." : comment.text);
+                const notification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "newComment", groupIdPara, activityIdPara);
+                expoNotifications.push(notification);
+            }
+            if (expoNotifications.length !== 0) {
+                console.log("Publishing Expo push messages for new comment:", expoNotifications.length);
+                publishExpoPushMessage(expoNotifications)
+            } else {
+                throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when new comment is added`);
+            }
+        } catch (error) {
+            console.error("Error in sendNewCommentForActivityNotification function:", error);
+        }
+    }
+)
+
+/**
+ * Send notification to whole group when a new activity is created
+ */
+export const sendNewActivityNotification = onDocumentCreated(
+    {
+        document: groupCollectionString + "/" + groupIdString + "/" + activityCollectionString + "/" + activityIdString,
+        region: "europe-west3"
+    },
+    async event => {
+        console.log("Cloud Function: sendNewActivityNotification called");
+        try {
+            if (!event) throw new Error("No event data in cloud function:sendNewActivityNotification");
+            const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
+            if (!snap) throw new Error("No data in cloud function, nothing to do");
+            const activity = snap.data()
+            const activityIdPara = event.params.activityId//[activityIdString]
+            const groupIdPara = event.params.groupId//[groupIdString]
+            const db = admin.firestore();
+            // Get users
+            const users: (admin.firestore.DocumentData | undefined)[] = await getFirebaseUsersOfGroup(db, groupIdPara);
+
+            if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara}`);
+            let expoNotifications: ExpoPushMessage[] = [];
+            for (const user of users) {
+                if (!user || !user.expoPushToken) continue;
+                if (!user.id || !activity.createdBy || user.id === activity.createdBy) continue; // Do not send notification to the user who created the activity
+                const language = user.language || "en"; // Default to English if no language is set
+                const notificationTitle = language === "de" ? "Neue Aktivität erstellt" : "New activity created";
+                let notificationBody = language === "de" ? "Aktivität: " + activity.name : "Activity: " + activity.name;
+                if (activity.description) {
+                    notificationBody += " - " + (activity.description.length > bodyCharacterLimit ? activity.description.substring(0, bodyCharacterLimit) + "..." : activity.description);
+                }
+                const notification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "newActivity", groupIdPara, activityIdPara);
+                expoNotifications.push(notification);
+            }
+            if (expoNotifications.length !== 0) {
+                console.log("Publishing Expo push messages for new activity:", expoNotifications);
+                publishExpoPushMessage(expoNotifications)
+            } else {
+                throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when new activity is created`);
+            }
+        } catch (error) {
+            console.error("Error in sendNewActivityNotification function:", error);
+        }
+    }
+)
+
+function createNotification(
+    token: string,
+    title: string,
+    body: string,
+    customNotificationType: "newActivity" | "newComment" | "activityScheduled" | "activityCancelled",
+    groupIdPara: string,
+    activityIdPara: string
+): ExpoPushMessage {
+    let imageUrl;
+    if(customNotificationType === "newActivity") {
+        imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/newActivity.png";
+    }else if(customNotificationType === "newComment") {
+        imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/notification.png";
+    }else if(customNotificationType === "activityScheduled") {
+        imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/activityScheduled.png";
+    }else if(customNotificationType === "activityCancelled") {
+        imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/activityCancelled.png";
+    }
+    let notificationData = {
+        type: customNotificationType,
+        params: {
+            groupIdParameter: groupIdPara,
+            activityIdParameter: activityIdPara,
+        }
+    }
+    const notification: ExpoPushMessage = {
+        to: token,
+        sound: 'default',
+        title: title,
+        body: body,
+        data: notificationData as unknown as Record<string, unknown>,
+        richContent: {
+            image:imageUrl
+        }
+    }
+    return notification
+}
+
+
+function publishExpoPushMessage(messages: ExpoPushMessage[]) {
+    console.log("Publishing Expo push messages:", messages);
+    return Promise.all(expo.chunkPushNotifications(messages)
+        .map((chunk) => expo.sendPushNotificationsAsync(chunk)))
+}
+
+
+function getFirebaseUsersOfGroup(db: admin.firestore.Firestore, groupId: string) {
+    return db.doc(groupCollectionString + "/" + groupId)
+        .get()
+        .then((groupSnap) => {
+            if (!groupSnap.exists) throw new Error(`Group with ID ${groupId} does not exist`);
+            return groupSnap.data()
+        }).then((group) => {
+            if (!group) throw new Error(`Group with ID ${groupId} does not exist`);
+            const usersOfGroupDocs = group.memberUuids.map((uuid: any) => db.doc(userCollectionString + "/" + uuid));
+            return db.getAll(...usersOfGroupDocs)
+        }).then((firebaseuserArr) => {
+            if (!firebaseuserArr || !firebaseuserArr.length) throw new Error(`No users found for group with ID ${groupId}`);
+            return firebaseuserArr
+                .filter(user => user.exists)
+                .map(user => user.data())
+        })
+}
+
+function formatDateAndTime(date: Date, language: string): string {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+        throw new Error("Invalid date object");
+    }
+    const options: Intl.DateTimeFormatOptions = {
+        year: '2-digit',
+        month: 'short',
+        day: 'numeric',
+        weekday: "short",
+        minute: "2-digit",
+        hour: "2-digit"
+    };
+    return date.toLocaleDateString(language, options);
+}

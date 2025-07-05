@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase/firestore/lite";
 import { z } from "zod";
 import { BusyAvailableTimesSchema, CommonUserSchema, LocalUserSchema } from "../ts/schemas";
 
@@ -8,7 +7,7 @@ export type IBusyAvailableTimes = z.infer<typeof BusyAvailableTimesSchema>;
 
 
 export interface IDbUser extends ICommonUser{
-    updatedAt?:Date|FieldValue;
+    // updatedAt?:Date|FirebaseFirestoreTypes.FieldValue;
 }
 
 // export interface ILocalUser extends ICommonUser{

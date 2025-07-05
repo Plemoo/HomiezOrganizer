@@ -40,6 +40,7 @@ export const CommonUserSchema = z.object({
     username: z.string().optional(),
     groupUuids: z.array(z.string()).optional(),
     icon: z.string().default(""),
+    expoPushToken: z.string().optional()
 });
 
 export const LocalUserSchema = CommonUserSchema.extend({
@@ -50,7 +51,7 @@ export const DbGroupSchema = z.object({
     icon: z.string(),
     name: z.string(),
     description: z.string(),
-    memberUuids: z.array(z.string()),
+    memberUuids: z.array(z.string())
 })
 
 export const GroupSchema = DbGroupSchema.extend({
@@ -64,7 +65,8 @@ export const TimeIntervalSchema = z.object({
 
 export const TimeSlotsPerUserSchema = z.object({
     userUuid: z.array(z.string()),
-    slots: TimeIntervalSchema
+    slots: TimeIntervalSchema,
+    selected: z.boolean().optional()
 })
 
 export const ActivityDurationSchema = z.object({
@@ -73,18 +75,22 @@ export const ActivityDurationSchema = z.object({
     minutes: z.number().optional() 
 })
 
+export const ActivityStateSchema = z.enum(["scheduled", "pending", "closed","cancelled"]);
+
+
 export const DbActivitySchema = z.object({
     name: z.string(),
     description: z.string(),
     destination: z.string(),
-    memberUuids: z.array(z.string()),
+    memberUuids: z.array(z.string()).optional(), // Only filled when the activity is scheduled
     minParticipants: z.number(),
     duration: ActivityDurationSchema,
     time: TimeIntervalSchema.optional(),
     declinedUserUuids: z.array(z.string()),
     timeSlotsPerUserUuid: z.array(TimeSlotsPerUserSchema),
-    state: z.enum(["scheduled", "pending", "closed","cancelled"]),
-    owningGroupId: z.string()
+    state: ActivityStateSchema,
+    owningGroupId: z.string(),
+    createdBy: z.string()
 })
 
 
@@ -113,8 +119,6 @@ export const DbInvitationSchema = z.object({
 export const InvitationSchema = DbInvitationSchema.extend({
     id: z.string(),
 })
-
-
 
 
 export function zodErrorLogging(error: any) {

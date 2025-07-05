@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ActivityDurationSchema, ActivitySchema, DbActivitySchema, TimeIntervalSchema, TimeSlotsPerUserSchema } from "../ts/schemas";
+import { ActivityDurationSchema, ActivitySchema, ActivityStateSchema, DbActivitySchema, TimeIntervalSchema, TimeSlotsPerUserSchema } from "../ts/schemas";
 import { IGroup } from "./GroupInterface";
 
 export type IActivity = z.infer<typeof ActivitySchema>;
@@ -7,6 +7,8 @@ export type IDbActivity = z.infer<typeof DbActivitySchema>;
 export type ITimeSlot = z.infer<typeof TimeSlotsPerUserSchema>;
 export type ITimeInterval = z.infer<typeof TimeIntervalSchema>;
 export type IDuration = z.infer<typeof ActivityDurationSchema>;
+export type IActivityState = z.infer<typeof ActivityStateSchema>;
+
 
 // export interface IActivity extends IDbActivity {
 //   id: string;

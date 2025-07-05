@@ -1,5 +1,5 @@
 import { ITimeInterval } from '@/assets/interfaces/ActivityInterface';
-import { formatDateForRnCalendar } from '@/assets/ts/timeManagement';
+import { dayjs, formatDateForRnCalendar } from '@/assets/ts/timeManagement';
 import WheelPicker from '@quidone/react-native-wheel-picker';
 import i18next from 'i18next';
 import React, { useEffect, useState } from 'react';
@@ -8,6 +8,7 @@ import { Text, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { MarkingProps } from 'react-native-calendars/src/calendar/day/marking';
 import { MarkedDates } from 'react-native-calendars/src/types';
+import LoadingDots from './Loading';
 import { useCustomTheme } from './ThemeContext';
 
 // Configure the locale
@@ -46,11 +47,11 @@ interface IDayAndTimeSelection {
 const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) => {
     const { theme } = useCustomTheme();
     const [selectedDateStart, setSelectedDateStart] = useState<string | null>(null);
-    const [hoursStart, setHoursStart] = useState(new Date().getHours())
-    const [minutesStart, setMinutesStart] = useState(roundToNext5(new Date().getMinutes()))
+    const [hoursStart, setHoursStart] = useState(dayjs().hour())
+    const [minutesStart, setMinutesStart] = useState(roundToNext5(dayjs().minute()))
     const [selectedDateEnd, setSelectedDateEnd] = useState<string | null>(null);
-    const [hoursEnd, setHoursEnd] = useState(new Date().getHours())
-    const [minutesEnd, setMinutesEnd] = useState(roundToNext5(new Date().getMinutes()))
+    const [hoursEnd, setHoursEnd] = useState(dayjs().hour())
+    const [minutesEnd, setMinutesEnd] = useState(roundToNext5(dayjs().minute()))
     const [markedDates, setMarkedDates] = useState<MarkedDates | undefined>();
     const [loading, setLoading] = useState(true)
     const { t } = useTranslation();
@@ -65,16 +66,16 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
     const minutesArray = getMinutesArr().map((m) => ({ value: m, label: m.toString() }));
     useEffect(() => {
         if (selectedDateStart) {
-            let startDate = new Date(selectedDateStart);
-            startDate.setMinutes(minutesStart);
-            startDate.setHours(hoursStart);
-            let endDate = new Date(startDate);
+            let startDate = dayjs(selectedDateStart);
+            startDate = startDate.set('minute', minutesStart);
+            startDate = startDate.set('hour', hoursStart);
+            let endDate = startDate;
             if (selectedDateEnd) {
-                endDate = new Date(selectedDateEnd);
+                endDate = dayjs(selectedDateEnd);
             }
-            endDate.setMinutes(minutesEnd);
-            endDate.setHours(hoursEnd);
-            onDateSelect({ start: startDate, end: endDate });
+            endDate = endDate.set('minute', minutesEnd);
+            endDate = endDate.set('hour', hoursEnd);
+            onDateSelect({ start: startDate.toDate(), end: endDate.toDate() });
         }
     }, [selectedDateStart, hoursStart, minutesStart, selectedDateEnd, hoursEnd, minutesEnd]);
 
@@ -107,8 +108,8 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
         } else if (!selectedDateEnd) {
             // Wenn bereits ein Startdatum ausgewählt ist, setze Enddatum
             setSelectedDateEnd(day.dateString);
-            const startDate = new Date(selectedDateStart);
-            const endDate = new Date(day.dateString);
+            const startDate = dayjs(selectedDateStart);
+            const endDate = dayjs(day.dateString);
             if (endDate < startDate) {
                 resetCalendarDates(day.dateString);
             }
@@ -123,7 +124,7 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
                 }
                 setMarkedDates((prev) => ({
                     ...prev,
-                    [formatDateForRnCalendar(date)]: markedElement
+                    [formatDateForRnCalendar(date.toDate())]: markedElement
                 }));
             });
         } else {
@@ -138,8 +139,7 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
         setMarkedDates({ [dateString]: { startingDay: true, endingDay: true, color: theme.colors.primary, textColor: theme.colors.textLight } });
     }
 
-    // TODO: Loading screen
-    if (loading) return <Text>Loading...</Text>
+    if (loading) return <LoadingDots visible />;
     return (
         <View>
             <Calendar
@@ -195,13 +195,14 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
 
 export default DayAndTimeSelection;
 
-/** return all Dates from start→end inclusive */
-function getDatesInRange(start: Date, end: Date): Date[] {
-    const dates: Date[] = []
-    const cur = new Date(start)
+/** return all Dates from start→end inclusive, to fill the calendar */
+function getDatesInRange(start: dayjs.Dayjs, end: dayjs.Dayjs): dayjs.Dayjs[] {
+    const dates: dayjs.Dayjs[] = []
+    let cur = start.clone()
+    end = end.clone()
     while (cur <= end) {
-        dates.push(new Date(cur))
-        cur.setDate(cur.getDate() + 1)
+        dates.push(cur.clone())
+        cur = cur.add(1, 'day')
     }
     return dates
 }

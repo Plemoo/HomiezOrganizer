@@ -12,7 +12,7 @@ type FontAwesome5IconProps = ComponentProps<typeof FontAwesome5>;
 
 const useUiIcons = () => {
   return {
-    FinishFlagIcon: (props: Partial<FontAwesome5IconProps>) => <FontAwesome5 name="flag-checkered" {...props} />,
+    // FinishFlagIcon: (props: Partial<FontAwesome5IconProps>) => <FontAwesome5 name="flag-checkered" {...props} />,
     CancelIcon:(props:Partial<MaterialCommunityIconProps>)=><MaterialCommunityIcons name="cancel" {...props} />,
     LinkIcon:(props:Partial<FontAwesome5IconProps>)=><FontAwesome5 name="link" {...props} />,
     ThumbDownIcon:(props:Partial<EntypoIconProps>)=><Entypo name="thumbs-down" {...props}/>,

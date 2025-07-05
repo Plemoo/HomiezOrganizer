@@ -1,37 +1,49 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
+import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { IGroup } from '@/assets/interfaces/GroupInterface';
-import { firebaseErrorHandling as firebaseErrorLogging, getFirebaseDocumentArray } from '@/assets/ts/firebaseExchange';
+import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
+import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
+import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { GroupSchema, zodErrorLogging } from '@/assets/ts/schemas';
+import LoadingDots from '@/components/Loading';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
+import { Unsubscribe } from '@react-native-firebase/firestore';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { UnknownInputParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 
 const Groups = () => {
-  const { user, makeSureUserIsLoggedIn } = useUser();
+  const { user, userLoading } = useUser();
   const router = useRouter();
   const { theme } = useCustomTheme();
-  const { avatars } = useAvatarIcons()
-  const [loading, setLoading] = useState(true)
+  const { avatars } = useAvatarIcons();
+  const [loading, setLoading] = useState(true);
   const [groupArray, setGroupArray] = useState<IGroup[] | undefined>(undefined);
   const { t } = useTranslation();
-  const uiIcons = useUiIcons()
-  const { userGroupIds } = useLocalSearchParams();
+  const uiIcons = useUiIcons();
 
   useEffect(() => {
-    // TODO: Hier ist noch ein Fehler, manchmal werden die Gruppen des Users nicht gefunden
-    if (userGroupIds) {
-      defineUserGroups(JSON.parse(userGroupIds as string))
-    } else if (user.groupUuids !== undefined && user.groupUuids.length > 0) {
-      defineUserGroups(user.groupUuids);
-    } else {
-      setGroupArray([])
+    if (!user || !user.id || userLoading) {
+      console.error("No UserID in group page");
+      return;
     }
-  }, [])
+    // Triggered on start and when user gets a new groupId
+    let unsubRef: Unsubscribe = FirebaseSnapshotListener.snapshotListenerForUserChange(user.id, (userWithNewGroupId: ILocalUser | null) => {
+      if (userWithNewGroupId && userWithNewGroupId.groupUuids) {
+        defineUserGroups(userWithNewGroupId.groupUuids);
+      } else if (userWithNewGroupId && userWithNewGroupId.groupUuids === undefined) {
+        // User has no groups, so we set groupArray to empty
+        setGroupArray([]);
+      }
+    })
+    return () => {
+      unsubRef();
+    }
+  }, [userLoading, user?.id]);
 
   useEffect(() => {
     if (Array.isArray(groupArray)) {
@@ -43,10 +55,8 @@ const Groups = () => {
 
 
   function defineUserGroups(groupIds: string[]) {
-    makeSureUserIsLoggedIn(user) //
-      .then(() => {
-        return getFirebaseDocumentArray(groupIds, "Group");
-      }).then((docArr) => {
+    FirebaseExchange.getFirebaseDocumentArray(groupIds, "Group")
+      .then((docArr) => {
         return docArr //
           .filter((doc) => doc.exists()) //
           .map((doc) => {
@@ -60,13 +70,12 @@ const Groups = () => {
       }).then((parsedGroups) => {
         setGroupArray(parsedGroups);
       }).catch((err) => {
-        firebaseErrorLogging(err);
+        FirebaseExchange.firebaseErrorHandling(err);
         setGroupArray([]);
-      });
+      })
   }
 
-  // TODO: LOading schön machen
-  if (loading) return <Text>Loading</Text>
+  if (loading) return <LoadingDots visible />;
 
   return (
     <ScrollView style={theme.containers.rootContainer} showsVerticalScrollIndicator={false}>
@@ -77,8 +86,15 @@ const Groups = () => {
         style={{ marginTop: theme.spacing.large }}
         data={groupArray}
         scrollEnabled={false}
-        renderItem={({ item, index }) =>
-          <Pressable key={index} onPress={() => router.push({ pathname: "/(tabs)/groups/GroupDetail", params: { groupIdString: item.id } })}>
+        keyExtractor={(item, index) => item.id + index}
+        renderItem={({ item }) =>
+          <Pressable
+            onPress={() => {
+              let searchParams: IFirebaseSearchParameter = {
+                groupIdParameter: item.id
+              }
+              router.push({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams })
+            }}>
             <View style={{ flexDirection: "row", marginTop: theme.spacing.medium, justifyContent: "space-between" }}>
               <View style={{ flexDirection: "row", gap: theme.spacing.large, width: "80%" }}>
                 <Image style={{ width: 40, height: 40 }} source={avatars[item.icon]} />

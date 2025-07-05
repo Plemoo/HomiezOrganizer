@@ -1,13 +1,15 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IComment, IDbComment } from '@/assets/interfaces/CommentInterface';
-import { addDocumentToCollection, firebaseErrorHandling, getAllDocumentsOfCollection } from '@/assets/ts/firebaseExchange';
+import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
+import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { parseFirebaseComment } from '@/assets/ts/parsing';
 import { formatDateAndTimeSmall } from '@/assets/ts/timeManagement';
-import { serverTimestamp } from 'firebase/firestore/lite';
+import { Timestamp } from '@react-native-firebase/firestore';
 import i18next from 'i18next';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Modal, Pressable, Text, TextInput, TouchableHighlight, View } from 'react-native';
+import LoadingDots from './Loading';
 import { useUser } from './ProfileInformationContext';
 import { useCustomTheme } from './ThemeContext';
 
@@ -17,7 +19,7 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
     const uiIcon = useUiIcons();
     const { user } = useUser();
     const [commentText, setCommentText] = useState<string | undefined>();
-    const [comments, setComments] = useState<IComment[]>([]);
+    const [comments, setComments] = useState<IComment[] | undefined>(undefined);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [commentTextModalVisible, setCommentTextModalVisible] = useState<boolean>(false);
 
@@ -28,25 +30,39 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
                 text: commentText,
                 userIcon: user.icon,
                 userName: user.username,
-                createdAt: serverTimestamp() as any
+                createdAt: Timestamp.now() as any//serverTimestamp() as any
             }
-            addDocumentToCollection("Group", newComment, groupId, "Activity", activityId, "Comment")
-                .then(() => fetchAllCommentsForActivity())
-                .then(fetchedComments => setComments(sortCommentsByStartDate(fetchedComments)))
+            FirebaseExchange.addDocumentToCollection("Group", newComment, groupId, "Activity", activityId, "Comment")
+                // .then(() => fetchAllCommentsForActivity())
+                // .then(fetchedComments => setComments(sortCommentsByStartDate(fetchedComments)))
                 .then(() => setCommentText(undefined))
         }
     };
 
     useEffect(() => {
-        fetchAllCommentsForActivity()
-            .then(fetchedComments => setComments(sortCommentsByStartDate(fetchedComments)))
-            .catch(err => firebaseErrorHandling(err))
-            .finally(() => setIsLoading(false));
+        let newCommentUnsub = FirebaseSnapshotListener.snapshotListenerForNewCommentInActivity(groupId, activityId, (newComment: IComment | null) => {
+            if (newComment) {
+                setComments(prevComments => {
+                    const updatedComments = [...(prevComments || []), newComment];
+                    return sortCommentsByStartDate(updatedComments);
+                });
+            }else{
+                setComments(prev=>[...prev||[]])
+            }
+        });
+        return () => newCommentUnsub();
     }, [])
 
+  useEffect(() => {
+    if (Array.isArray(comments)) {
+      setIsLoading(false)
+    } else {
+      setIsLoading(true)
+    }
+  }, [comments])
 
     const fetchAllCommentsForActivity = (): Promise<IComment[]> => {
-        return getAllDocumentsOfCollection("Group", groupId, "Activity", activityId, "Comment")
+        return FirebaseExchange.getAllDocumentsOfCollection("Group", groupId, "Activity", activityId, "Comment")
             .then((commentDocuments) => {
                 if (!commentDocuments.empty) {
                     let commentsOfActivity: IComment[] = commentDocuments.docs.
@@ -58,8 +74,7 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
             })
     }
 
-    // TODO: Loading ausbauen
-    if (isLoading) return <Text>IsLoading</Text>
+    if (isLoading) return <LoadingDots visible />;
 
     return (
         <View style={{ marginBottom: theme.spacing.medium }}>
@@ -73,9 +88,9 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
                 <FlatList
                     data={comments}
                     scrollEnabled={false}
+                    keyExtractor={(item, index) => item.id + index}
                     renderItem={({ item, index }) => (
                         <View
-                            key={index}
                             style={[
                                 {
                                     width: "85%",
@@ -85,7 +100,7 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
                                     padding: theme.spacing.small,
                                     marginBottom: theme.spacing.small
                                 },
-                                item.userUuid === user.id ? { alignSelf: "flex-end" } : {}
+                                user &&item.userUuid === user.id ? { alignSelf: "flex-end" } : {}
                             ]}
                         >
                             <View>

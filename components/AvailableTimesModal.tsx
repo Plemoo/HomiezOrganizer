@@ -6,7 +6,7 @@ import { Modal, Pressable, Text, TouchableHighlight, View } from 'react-native';
 import DayAndTimeSelection from './DayAndTimeSelection';
 import { useCustomTheme } from './ThemeContext';
 
-const AvailableTimesModal = ({modalVisible, actionByParent}: {modalVisible: boolean, actionByParent: (timeSlot: ITimeInterval) => void}) => {
+const AvailableTimesModal = ({modalVisible, actionByParent,setModalStateInParent}: {modalVisible: boolean, actionByParent: (timeSlot: ITimeInterval) => void, setModalStateInParent: (state: boolean) => void}) => {
     const [timeSlotModalVisible, setTimeSlotModalVisible] = React.useState(modalVisible);
     const { t } = useTranslation();
     const { theme } = useCustomTheme();
@@ -25,6 +25,7 @@ const AvailableTimesModal = ({modalVisible, actionByParent}: {modalVisible: bool
     const timeSlotModalReset = () => {
         setTimeSlotModalVisible(false);
         setSelectedTimeSlot(undefined);
+        setModalStateInParent(false)
     }
   useEffect(() => {
     timeSlotWarnings(selectedTimeSlot)
@@ -62,9 +63,9 @@ const AvailableTimesModal = ({modalVisible, actionByParent}: {modalVisible: bool
                     <DayAndTimeSelection onDateSelect={(val) => setSelectedTimeSlot(val)} />
                 </View>
                 {timeSlotInputWarn ?
-                    <View style={{ flexDirection: "row", gap: theme.spacing.small }}>
+                    <View style={{ flexDirection: "row", gap: theme.spacing.small, width:"90%" }}>
                         <uiIcon.WarnIcon size={24} color={theme.colors.primary} />
-                        <Text>{timeSlotInputWarn}</Text>
+                        <Text style={theme.typography.body}>{timeSlotInputWarn}</Text>
                     </View>
                     : null
                 }

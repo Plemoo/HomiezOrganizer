@@ -30,6 +30,12 @@
     "emptyCommentsText": "No comments yet. Be the first to comment!",
     "scheduleActivity": "Schedule Activity",
     "cancelActivity": "Cancel Activity",
+    "scheduledActivityEmptyText": "No scheduled activities yet. Once the planning is done, the activity appears here.",
+    "pendingActivityEmptyText": "No open activities yet. Plan a new activity to see it here.",
+    "noValidTimeSlot": "No time slot where the minimum number of participants is available.",
+    "noValidTimeSlotTitle": "Nov valid time slot",
+    "chooseTimeSlot": "Choose the time slot when the activity should take place.",
+    "activityDetails":"Details",
     "cancelDialog": {
       "cancel": "Back",
       "yesIamSure": "Yes, I'm sure",
@@ -58,7 +64,17 @@
     "minParticipants": "Minimum Participants",
     "minParticipantsInput": "Lowest participants number for activity",
     "noGroupSelected": "No group selected",
-    "until": "until"
+    "until": "until",
+    "submitWarnings": {
+      "warnNoActivityName": "Please enter an activity name.",
+      "warnNoActivityDestination": "Please enter a destination for the activity.",
+      "warnNoActivityDescription": "Please enter a description for the activity.",
+      "warnNoActivityGroup": "Please select a group for the activity.",
+      "warnNoMinParticipants": "Please enter the minimum number of participants.",
+      "warnNoTimeSlot": "Please select a time slot for the activity.",
+      "warnNoDuration": "Please enter a duration for the activity.",
+      "warnDurationLongerThanTimeSlot": "Please make sure the time slots are bigger than the activity duration."
+    }
   },
   "settings": {
     "settingsTitle": "Settings",

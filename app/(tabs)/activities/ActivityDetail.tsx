@@ -1,27 +1,31 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
-import { IActivity, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
+import { IActivity, IDuration, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
+import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
 import { activityCancelConfirmationDialog } from '@/assets/ts/activityCancelDialog';
-import { firebaseErrorHandling, getFirebaseDocument, getFirebaseDocumentArray, updateFirebaseDocument } from '@/assets/ts/firebaseExchange';
+import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
+import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { parseFirebaseActivity, parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
-import { ActivitySchema, zodErrorLogging } from '@/assets/ts/schemas';
-import { formatDateAndTimeSmall, showDuration } from '@/assets/ts/timeManagement';
+import { dayjs, formatDateAndTimeSmall } from '@/assets/ts/timeManagement';
 import ActivityComments from '@/components/ActivityComments';
+import ActivityDetailDetails from '@/components/ActivityDetailDetails';
 import AvailableTimesModal from '@/components/AvailableTimesModal';
 import GoBack from '@/components/GoBack';
+import LoadingDots from '@/components/Loading';
 import { useUser } from '@/components/ProfileInformationContext';
 import ShowUserIconOrName from '@/components/ShowUserIconOrName';
 import { useCustomTheme } from '@/components/ThemeContext';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import TimeSlotSelectionModal from '@/components/TimeSlotSelectionModal';
+import { UnknownInputParams, useLocalSearchParams, useRouter } from 'expo-router';
 import i18next from 'i18next';
 import { isEqual } from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Pressable, ScrollView, Switch, Text, TouchableHighlight, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, Switch, Text, TouchableHighlight, View } from 'react-native';
 
 const ActivityDetail = () => {
-  const { user } = useUser();
-  const { activityStringified } = useLocalSearchParams<{ activityStringified: string }>();
+  const { user, userLoading } = useUser();
+  const { activityIdParameter, groupIdParameter }: IFirebaseSearchParameter = useLocalSearchParams();
   const { theme } = useCustomTheme();
   const [anyAcceptionUser, setAnyAcceptionUser] = useState<ILocalUser[]>([]);
   const [declinedUser, setDeclinedUser] = useState<ILocalUser[]>([]);
@@ -30,66 +34,80 @@ const ActivityDetail = () => {
   const [groupId, setGroupId] = useState<string | undefined>();
   const [activityId, setActivityId] = useState<string | undefined>();
   const [activityName, setActivityName] = useState<string | undefined>();
-  const [activityDuration, setActivityDuration] = useState<string | undefined>();
+  const [activityGroupName, setActivityGroupName] = useState<string | undefined>();
+  const [activityDuration, setActivityDuration] = useState<IDuration | undefined>();
   const [activityMinParticipants, setActivityMinParticipants] = useState<number | undefined>();
   const [activityDescription, setActivityDescription] = useState<string | undefined>();
   const [userActivityStatus, setUserActivityStatus] = useState<"accepted" | "declined" | "open">("open");
-  const [refreshPage, setRefreshPage] = useState(false);
   const router = useRouter();
   const { t } = useTranslation();
   const uiIcon = useUiIcons();
   const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
   const [newTimeSlotModalVisible, setNewTimeSlotModalVisible] = useState(false);
+  const [timeSlotModalSelectionVisible, setTimeSlotModalSelectionVisible] = useState(false);
 
 
   useEffect(() => {
-    setRefreshPage(false);
-    if (activityStringified) {
-      try {
-        const parsedActivity: IActivity = ActivitySchema.parse(JSON.parse(activityStringified));
-        setActivityId(parsedActivity.id);
-        setGroupId(parsedActivity.owningGroupId);
-        setActivityName(parsedActivity.name);
-        setActivityDuration(showDuration(parsedActivity.duration));
-        setActivityMinParticipants(parsedActivity.minParticipants);
-        setActivityDescription(parsedActivity.description);
-        setTimeSlotsPerUser(parsedActivity.timeSlotsPerUserUuid);
-        // Fetch all the users of the Group/Activity
-        getFirebaseDocument(parsedActivity.owningGroupId, "Group")
-          .then((groupDoc) => {
-            let group = parseFirebaseGroup(groupDoc);
-            return group ? group.memberUuids : [];
-          }).then((groupMembers) => {
-            const userIdOfAnySlot = parsedActivity.timeSlotsPerUserUuid.flatMap((slot) => slot.userUuid);
-            const userIdDeclined = parsedActivity.declinedUserUuids;
-            const userIdOpen = groupMembers.filter((userId) => !userIdOfAnySlot.includes(userId) && !userIdDeclined.includes(userId));
-            getFirebaseDocumentArray([...userIdOfAnySlot, ...userIdDeclined, ...userIdOpen], "User")
-              .then((docs) => {
-                const allUsers = docs.map((doc) => parseFirebaseUser(doc)).filter((user): user is ILocalUser => user !== null);
-                setAnyAcceptionUser(allUsers.filter(firebaseUser => userIdOfAnySlot.includes(firebaseUser.id)));
-                setDeclinedUser(allUsers.filter(firebaseUser => userIdDeclined.includes(firebaseUser.id)));
-                setOpenUser(allUsers.filter(firebaseUser => userIdOpen.includes(firebaseUser.id)));
-                if (userIdDeclined.includes(user.id)) {
-                  setUserActivityStatus("declined");
-                } else if (userIdOfAnySlot.includes(user.id)) {
-                  setUserActivityStatus("accepted");
-                } else {
-                  setUserActivityStatus("open");
-                }
-              })
-              .catch((err) => firebaseErrorHandling(err))
-          }).catch((err) => firebaseErrorHandling(err));
-
-      } catch (error) {
-        zodErrorLogging(error)
-      }
+    if(!user || userLoading) return;
+    let unsubscribe: (() => void) | undefined;
+    if (activityIdParameter && groupIdParameter) {
+      unsubscribe = FirebaseSnapshotListener.snapshotListenerForActivityDetailChange(groupIdParameter, activityIdParameter, (activityWithChange: IActivity | null) => {
+        if (activityWithChange) {
+          if (activityWithChange.state === "cancelled" || activityWithChange.state === "closed") {
+            router.replace("/(tabs)/activities/Activities")
+            return null;
+          }
+          if (activityWithChange.state === "scheduled") {
+            let searchParams: IFirebaseSearchParameter = {
+              activityIdParameter: activityWithChange.id,
+              groupIdParameter: activityWithChange.owningGroupId,
+            }
+            router.replace({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
+            return null;
+          }
+          setActivityId(activityWithChange.id);
+          setGroupId(activityWithChange.owningGroupId);
+          setActivityName(activityWithChange.name);
+          setActivityDuration(activityWithChange.duration);
+          setActivityMinParticipants(activityWithChange.minParticipants);
+          setActivityDescription(activityWithChange.description);
+          setTimeSlotsPerUser(activityWithChange.timeSlotsPerUserUuid);
+          // Fetch all the users of the Group/Activity
+          FirebaseExchange.getFirebaseDocument(activityWithChange.owningGroupId, "Group")
+            .then((groupDoc) => {
+              let group = parseFirebaseGroup(groupDoc);
+              setActivityGroupName(group?.name);
+              return group ? group.memberUuids : [];
+            }).then((groupMembers) => {
+              const userIdOfAnySlot = activityWithChange.timeSlotsPerUserUuid.flatMap((slot) => slot.userUuid);
+              const userIdDeclined = activityWithChange.declinedUserUuids;
+              const userIdOpen = groupMembers.filter((userId) => !userIdOfAnySlot.includes(userId) && !userIdDeclined.includes(userId));
+              FirebaseExchange.getFirebaseDocumentArray([...userIdOfAnySlot, ...userIdDeclined, ...userIdOpen], "User")
+                .then((docs) => {
+                  const allUsers = docs.map((doc) => parseFirebaseUser(doc)).filter((user): user is ILocalUser => user !== null);
+                  setAnyAcceptionUser(allUsers.filter(firebaseUser => userIdOfAnySlot.includes(firebaseUser.id)));
+                  setDeclinedUser(allUsers.filter(firebaseUser => userIdDeclined.includes(firebaseUser.id)));
+                  setOpenUser(allUsers.filter(firebaseUser => userIdOpen.includes(firebaseUser.id)));
+                  if (userIdDeclined.includes(user.id)) {
+                    setUserActivityStatus("declined");
+                  } else if (userIdOfAnySlot.includes(user.id)) {
+                    setUserActivityStatus("accepted");
+                  } else {
+                    setUserActivityStatus("open");
+                  }
+                })
+                .catch((err) => FirebaseExchange.firebaseErrorHandling(err))
+            }).catch((err) => FirebaseExchange.firebaseErrorHandling(err));
+        }
+      })
     }
-  }, [activityStringified, refreshPage])
+    return () => unsubscribe?.();
+  }, [activityIdParameter, groupIdParameter,userLoading])
 
 
   const addOrRemoveUserFromTimeSlot = (item: ITimeSlot) => {
-    if (!activityId || !groupId) return;
-    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+    if (!activityId || !groupId || !user) return;
+    FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
       .then((activityDoc) => parseFirebaseActivity(activityDoc))
       .then((firebaseActivity) => {
         if (!firebaseActivity) return;
@@ -102,14 +120,18 @@ const ActivityDetail = () => {
           timeSlotsPerUserUuid: newTimeSlotsPerUser
         };
         setAcceptedOrOpenUserActivityStatus(newTimeSlotsPerUser);
-        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
-          .catch((err) => firebaseErrorHandling(err));
-        // TODO: Kompletten Zeitslot löschen, wenn kein user mehr drin ist
+        FirebaseExchange.updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+          .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
+        // TODO: Kompletten Zeitslot löschen, wenn kein user mehr drin ist? Überschneidendende Zeitslots behandeln?
       })
   }
 
   const setAcceptedOrOpenUserActivityStatus = (newTimeSlotsPerUser: ITimeSlot[]) => {
-    let userIdContainedInTimeSlot = newTimeSlotsPerUser.map((slot) => slot.userUuid).flat().some((userId) => userId === user.id);
+    if (!user) return;
+    let userIdContainedInTimeSlot = newTimeSlotsPerUser
+      .map((slot) => slot.userUuid)
+      .flat()
+      .some((userId) => userId === user.id);
     if (userIdContainedInTimeSlot) {
       setUserActivityStatus("accepted");
       // Füge den User zu den akzeptierten Nutzern hinzu, wenn er nicht schon drin ist
@@ -138,8 +160,8 @@ const ActivityDetail = () => {
   }
 
   const acceptAllTimeSlots = () => {
-    if (!activityId || !groupId) return;
-    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+    if (!activityId || !groupId || !user) return;
+    FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
       .then((activityDoc) => parseFirebaseActivity(activityDoc))
       .then((firebaseActivity) => {
         if (!firebaseActivity) return;
@@ -163,13 +185,13 @@ const ActivityDetail = () => {
           declinedUserUuids: firebaseActivity.declinedUserUuids.filter((userId) => userId !== user.id), // User aus den abgelehnten Nutzern entfernen
           timeSlotsPerUserUuid: newTimeSlotsPerUser
         };
-        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+        FirebaseExchange.updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
       })
   }
 
   const declineActivity = () => {
-    if (!activityId || !groupId) return;
-    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+    if (!activityId || !groupId || !user) return;
+    FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
       .then((activityDoc) => parseFirebaseActivity(activityDoc))
       .then((firebaseActivity) => {
         if (!firebaseActivity) return;
@@ -191,14 +213,14 @@ const ActivityDetail = () => {
             declinedUserUuids: [...new Set([...firebaseActivity.declinedUserUuids, user.id])],
             timeSlotsPerUserUuid: timeSlotsWithoutCurrentUser
           };
-          updateFirebaseDocument(declinedUserAcitivity, "Group", groupId, "Activity", declinedUserAcitivity.id)
+          FirebaseExchange.updateFirebaseDocument(declinedUserAcitivity, "Group", groupId, "Activity", declinedUserAcitivity.id)
         }
       })
   }
 
   const submittedNewTimeSlot = (timeInterval: ITimeInterval) => {
-    if (!activityId || !groupId) return;
-    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+    if (!activityId || !groupId || !user) return;
+    FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
       .then((activityDoc) => parseFirebaseActivity(activityDoc))
       .then((firebaseActivity) => {
         if (!firebaseActivity) return;
@@ -214,42 +236,86 @@ const ActivityDetail = () => {
           ...firebaseActivity,
           timeSlotsPerUserUuid: newTimeSlotsPerUser
         };
-        updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
-          .catch((err) => firebaseErrorHandling(err));
+        FirebaseExchange.updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
+          .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
       });
   }
 
   const cancelActivityPressed = () => {
     if (!activityId || !groupId) return;
     activityCancelConfirmationDialog(() => {
-      getFirebaseDocument(activityId, "Group", groupId, "Activity")
+      FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
         .then((activityDoc) => parseFirebaseActivity(activityDoc))
         .then((firebaseActivity) => {
           if (!firebaseActivity) return;
           // Lösche die Activity
-          updateFirebaseDocument({ ...firebaseActivity, state: "cancelled" }, "Group", groupId, "Activity", firebaseActivity.id)
+          FirebaseExchange.updateFirebaseDocument({ ...firebaseActivity, state: "cancelled" }, "Group", groupId, "Activity", firebaseActivity.id)
             .then(() => router.replace("/activities/Activities")) // Gehe zurück
-            .catch((err) => firebaseErrorHandling(err));
+            .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
         });
     })
   }
 
   const submitActivityPressed = () => {
-    if (!activityId || !groupId) return;
-    getFirebaseDocument(activityId, "Group", groupId, "Activity")
+    if (!activityId || !groupId || !activityMinParticipants) return;
+    let possibleTimeSlots = timeSlotsPerUser.filter((slot) => slot.userUuid.length >= activityMinParticipants);
+    if (possibleTimeSlots.length === 0) {
+      Alert.alert(t("activities.noValidTimeSlotTitle"), t("activities.noValidTimeSlot"));
+      return;
+    }
+    if (possibleTimeSlots.length > 1) {
+      // In diesem Fall wird Aktivität hier gestartet: activityTimeSlotSelection
+      setTimeSlotModalSelectionVisible(true);
+    } else {
+      updateActivityWithSelectedTimeSlot();
+    }
+  }
+
+  /**
+   * Methode setzt den Status von planned auf scheduled und setzt alle notwendigen attribute
+   */
+  const updateActivityWithSelectedTimeSlot = (timeSlotsWithSelection?: ITimeSlot[]) => {
+    if (!activityId || !groupId || !activityMinParticipants) return;
+    FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
       .then((activityDoc) => parseFirebaseActivity(activityDoc))
       .then((firebaseActivity) => {
         if (!firebaseActivity) return;
-        let scheduledActivity: IActivity = { ...firebaseActivity, state: "scheduled" }
-        updateFirebaseDocument(scheduledActivity, "Group", groupId, "Activity", firebaseActivity.id)
-          .then(() => router.replace({ pathname: "/activities/ScheduledActivity", params: { scheduledActivityStringified: JSON.stringify(scheduledActivity) } })) // Gehe zurück
-          .catch((err) => firebaseErrorHandling(err));
-      }).catch((err) => firebaseErrorHandling(err));
+        // Wird kein Zeitslot übergeben, wird angenommen, dass es nur einen Zeitslot gibt, der >=1 min Participants hat
+        if (!timeSlotsWithSelection) {
+          timeSlotsWithSelection = firebaseActivity.timeSlotsPerUserUuid.map((slot) => slot.userUuid.length >= activityMinParticipants ? { ...slot, selected: true } : slot);
+        }
+        let selectedSlot = timeSlotsWithSelection.filter((slot) => slot.selected)
+        if (selectedSlot.length !== 1) throw new Error("Es muss genau ein Zeitslot ausgewählt sein, um die Aktivität zu planen.");
+        // Setze die wirkliche Zeit (Time Slot start + Duration)
+        let endDate = dayjs(selectedSlot[0].slots.start)
+          .add((firebaseActivity.duration.minutes ? firebaseActivity.duration.minutes : 0), "minute")
+          .add((firebaseActivity.duration.hours ? firebaseActivity.duration.hours : 0), "hour")
+          .add((firebaseActivity.duration.days ? firebaseActivity.duration.days : 0), "day");
+        let activityTime = { start: selectedSlot[0].slots.start, end: endDate.toDate() };
+        let scheduledActivity: IActivity = {
+          ...firebaseActivity,
+          state: "scheduled",
+          timeSlotsPerUserUuid: timeSlotsWithSelection, // Füge alle Zeitslots hinzu. Inklusive der der selected ist
+          time: activityTime, // Setze die Zeit, worin die Aktivität stattfindet
+          memberUuids: selectedSlot[0].userUuid // Setze die Teilnehmer der aktivität
+        };
+        FirebaseExchange.updateFirebaseDocument(scheduledActivity, "Group", groupId, "Activity", firebaseActivity.id)
+          .then(() => {
+            const notificationData: IFirebaseSearchParameter = {
+              groupIdParameter: scheduledActivity.owningGroupId,
+              activityIdParameter: scheduledActivity.id
+            }
+            router.replace({ pathname: "/activities/ScheduledActivity", params: notificationData as UnknownInputParams }) // Gehe zurück
+          })
+          .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
+      }).catch((err) => FirebaseExchange.firebaseErrorHandling(err));
   }
 
-  // TODO: Refresh button?
-  // TODO: Loading state
-  if (!activityId || !groupId) return <Text>LOADING</Text>;
+  const activityTimeSlotSelection = (timeSlots: ITimeSlot[]) => {
+    setTimeSlotModalSelectionVisible(false);
+    updateActivityWithSelectedTimeSlot(timeSlots);
+  }
+  if (!activityId || !groupId) return <LoadingDots visible />;
 
   return (
     <ScrollView style={theme.containers.rootContainer} showsVerticalScrollIndicator={false}>
@@ -312,14 +378,12 @@ const ActivityDetail = () => {
         </View>
         <ShowUserIconOrName users={openUser} showNamesOrIcons={showNamesOrIcons} />
       </View>
-      {/* Activity Duration and Min Participants */}
-      <View style={{ marginBottom: theme.spacing.medium }}>
-        <Text style={theme.typography.heading2}>{t("planning.minParticipants")} & {t("planning.activityDuration")}</Text>
-        <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
-          <Text style={theme.typography.body}>{(activityMinParticipants)}</Text>
-          <Text style={theme.typography.body}>{activityDuration}</Text>
-        </View>
-      </View>
+      {/* Activity Duration and Min Participants ActivityGroup */}
+      <ActivityDetailDetails
+        activityMinParticipants={activityMinParticipants}
+        activityDuration={activityDuration}
+        activityGroupName={activityGroupName}
+      />
       {/* Activity Description */}
       <View style={{ marginBottom: theme.spacing.medium }}>
         <Text style={theme.typography.heading2}>{t("planning.activityDescription")}</Text>
@@ -346,7 +410,7 @@ const ActivityDetail = () => {
               </View>
               <View style={{ flexDirection: "row", gap: theme.spacing.medium }}>
                 <Pressable
-                  style={{ borderWidth: 2, backgroundColor: item.userUuid.includes(user.id) ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
+                  style={{ borderWidth: 2, backgroundColor: user &&item.userUuid.includes(user.id) ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
                   onPress={() => addOrRemoveUserFromTimeSlot(item)}
                 >
                   <uiIcon.ThumbUpIcon size={30} color={theme.colors.primary} />
@@ -366,12 +430,18 @@ const ActivityDetail = () => {
         </TouchableHighlight>
         <TouchableHighlight style={[theme.button, { flex: 1 }]} onPress={() => submitActivityPressed()}>
           <View style={{ gap: theme.spacing.small, marginHorizontal: theme.spacing.medium, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
-            <uiIcon.FinishFlagIcon size={30} color={theme.colors.textLight} />
+            <uiIcon.CalendarWithOkIcon size={30} color={theme.colors.textLight} />
             <Text style={theme.buttonText}>{t("activities.scheduleActivity")}</Text>
           </View>
         </TouchableHighlight>
       </View>
-      <AvailableTimesModal modalVisible={newTimeSlotModalVisible} actionByParent={(timeSlot) => submittedNewTimeSlot(timeSlot)} />
+      <AvailableTimesModal modalVisible={newTimeSlotModalVisible} actionByParent={(timeSlot) => submittedNewTimeSlot(timeSlot)} setModalStateInParent={setNewTimeSlotModalVisible} />
+      <TimeSlotSelectionModal
+        transitionVisibleState={(isVisible) => setTimeSlotModalSelectionVisible(isVisible)}
+        modalVisible={timeSlotModalSelectionVisible}
+        actionByParent={(timeSlot) => activityTimeSlotSelection(timeSlot)}
+        minParticipants={activityMinParticipants || 0}
+        timeSlots={timeSlotsPerUser} />
     </ScrollView>
   )
 }
