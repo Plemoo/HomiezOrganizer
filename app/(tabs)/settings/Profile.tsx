@@ -1,20 +1,25 @@
+import LoadingDots from '@/components/Loading';
 import ProfileEdit from '@/components/ProfileEdit';
 import ProfileOverview from '@/components/ProfileOverview';
-import React, { useState } from 'react';
-
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 
 const Profile = () => {
   const [editMode, setEditMode] = useState(false)
+  const { isEditMode } = useLocalSearchParams();
+  useEffect(() => {
+    if (isEditMode === "true") {
+      setEditMode(true);
+    }
+  }, [isEditMode]);
 
-  return (
-    <>
-      {editMode?
-      <ProfileEdit returnToOverview={()=>setEditMode(false)}/>
-      :
-      <ProfileOverview goToEdit={()=>setEditMode(true)}/>
-      }
-    </>
-  )
+  if (editMode === true) {
+    return (<ProfileEdit returnToOverview={() => { setEditMode(false) }} />)
+  } else if (editMode === false) {
+    return (<ProfileOverview goToEdit={() => setEditMode(true)} />)
+  } else {
+    return <LoadingDots visible={true} />
+  }
 }
 
 export default Profile

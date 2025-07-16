@@ -5,7 +5,18 @@ service cloud.firestore {
     function isAuthenticatedUser() {
       return exists(/databases/$(database)/documents/User/$(request.auth.uid));
     }
+    match /{parentPath=**}/Activity/{actId} {
+      allow list: if isAuthenticatedUser();
+    }
+ 
     match /Group/{groupId} {
+    function parentAllowsUser() {
+      // Get the parent document
+      let parent = /databases/$(database)/documents/Group/$(groupId);
+      // It must exist, and its memberUuids must contain the UID
+      return exists(parent)
+        && request.auth.uid in get(parent).data.memberUuids;
+    }         
     	// Nur registrierte User dürfen neue Dokumente anlegen
       allow create: if isAuthenticatedUser();
       // Update für Gruppen, nur für das memberUuids Feld
@@ -21,12 +32,12 @@ service cloud.firestore {
         // only your client‐run transaction can increment uses
         allow update: if false;
       }
-    }
-    match /{parent=**}/Activity/{activityId}{
-      allow read, write: if isAuthenticatedUser();
-    }
-    match /Group/{groupId}/Activity/{activityId}/Comment/{commentId}{
-      allow create, read, delete: if isAuthenticatedUser();
+      match /Activity/{activityId}{
+        allow read, write: if isAuthenticatedUser() && parentAllowsUser();
+        match /Comment/{commentId}{
+          allow create, read, delete: if isAuthenticatedUser() && parentAllowsUser();
+        }
+      }
     }
     // Zugriff auf eigene User-Daten
     match /User/{uid} {

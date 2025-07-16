@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-export const unstable_settings = {
-  initialRouteName: 'Activities', // or your default screen
-};
+// export const unstable_settings = {
+//   initialRouteName: 'Activities', // or your default screen
+// };
 const ActivityLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false }}>

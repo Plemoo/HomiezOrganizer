@@ -6,15 +6,18 @@ import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { GroupSchema, zodErrorLogging } from '@/assets/ts/schemas';
+import { useAlert } from '@/components/AlertContext';
 import LoadingDots from '@/components/Loading';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { Unsubscribe } from '@react-native-firebase/firestore';
-import { Image } from 'expo-image';
 import { UnknownInputParams, useRouter } from 'expo-router';
+import * as jdenticon from 'jdenticon';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
+
 
 const Groups = () => {
   const { user, userLoading } = useUser();
@@ -25,6 +28,8 @@ const Groups = () => {
   const [groupArray, setGroupArray] = useState<IGroup[] | undefined>(undefined);
   const { t } = useTranslation();
   const uiIcons = useUiIcons();
+  const { showAlert } = useAlert();
+
 
   useEffect(() => {
     if (!user || !user.id || userLoading) {
@@ -75,6 +80,24 @@ const Groups = () => {
       })
   }
 
+  const leaveGroup = (groupId: string) => {
+    if (!user || !user.id) {
+      console.error("No UserID in leaveGroup function");
+      return;
+    }
+    let memberUuidKeyOfGroup: keyof IGroup = "memberUuids";
+    let groupUuidKeyOfUser: keyof ILocalUser = "groupUuids";
+    FirebaseExchange.removeFirestoreValueFromArray(groupId, "Group", memberUuidKeyOfGroup, user.id)
+      .then(() => {
+        user.groupUuids = user.groupUuids?.filter((id) => id !== groupId);
+        return FirebaseExchange.removeFirestoreValueFromArray(user.id, "User", groupUuidKeyOfUser, groupId);
+      })
+      .catch((err) => {
+        console.error("Error leaving Group: ", err);
+      })
+
+  }
+
   if (loading) return <LoadingDots visible />;
 
   return (
@@ -96,14 +119,26 @@ const Groups = () => {
               router.push({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams })
             }}>
             <View style={{ flexDirection: "row", marginTop: theme.spacing.medium, justifyContent: "space-between" }}>
-              <View style={{ flexDirection: "row", gap: theme.spacing.large, width: "80%" }}>
-                <Image style={{ width: 40, height: 40 }} source={avatars[item.icon]} />
-                <View style={{ flexDirection: "column", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", gap: theme.spacing.large, width: "80%", flexGrow: 1 }}>
+                {/* <Image style={{ width: 40, height: 40 }} source={avatars[item.icon]} /> */}
+                <SvgXml xml={jdenticon.toSvg(item.name, 50)} width={50} height={50} />
+                <View style={{ flexDirection: "column", justifyContent: "center", flexShrink: 1 }}>
                   <Text style={theme.typography.heading3}>{item.name}</Text>
                   <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>{item.memberUuids.length} {t("groups.groupMembers")}</Text>
                 </View>
               </View>
-              <View style={{ justifyContent: "center" }}>
+              <View style={{ flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+                <Pressable style={{ justifyContent: "center" }} onPress={() => showAlert({
+                  title: t("groups.leaveGroupDialog.title"),
+                  message: t("groups.leaveGroupDialog.leaveGroupText"),
+                  cancelText: t("groups.leaveGroupDialog.cancel"),
+                  confirmText: t("groups.leaveGroupDialog.yesIamSure"),
+                  onConfirm: () => leaveGroup(item.id),
+                })}>
+                  <uiIcons.RemoveUser size={30} color={theme.colors.primary} />
+                </Pressable>
+              </View>
+              <View style={{ justifyContent: "center", flex: 1, alignItems: "center" }}>
                 <uiIcons.RightPointerIcon size={40} color={theme.colors.primary} />
               </View>
             </View>

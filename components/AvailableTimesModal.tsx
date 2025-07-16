@@ -54,7 +54,9 @@ const AvailableTimesModal = ({modalVisible, actionByParent,setModalStateInParent
             animationType="slide"
             visible={timeSlotModalVisible}
             onRequestClose={() => setTimeSlotModalVisible(false)}
+            style={{backgroundColor:"blue"}}
         >
+            <View style={{flex:1, backgroundColor: theme.colors.background}}>
             <Pressable style={theme.leftCornerIcon} onPress={modalBackButton}>
                 <uiIcon.ArrowLeftIcon size={30} color={theme.colors.primary} />
             </Pressable>
@@ -74,6 +76,7 @@ const AvailableTimesModal = ({modalVisible, actionByParent,setModalStateInParent
                     disabled={timeSlotInputWarn !== undefined}>
                     <Text style={theme.buttonText}>{t("planning.timeButtonText")}</Text>
                 </TouchableHighlight>
+            </View>
             </View>
         </Modal>
     )

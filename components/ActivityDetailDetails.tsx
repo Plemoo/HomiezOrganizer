@@ -14,7 +14,7 @@ const ActivityDetailDetails = ({ activityMinParticipants, activityDuration, acti
 }) => {
   const { t } = useTranslation();
   const { theme } = useCustomTheme();
-  // TODO: So machen, dass auch Schedule Activity Unterstützt wird
+
   return (
     <View style={{ marginBottom: theme.spacing.medium }}>
       <Text style={theme.typography.heading2}>{t("activities.activityDetails")}</Text>

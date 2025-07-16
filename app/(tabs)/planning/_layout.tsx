@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-export const unstable_settings = {
-  initialRouteName: 'Planning', // or your default screen
-};
+// export const unstable_settings = {
+//   initialRouteName: 'Planning', // or your default screen
+// };
 
 const PlanningLayout = () => {
   return (

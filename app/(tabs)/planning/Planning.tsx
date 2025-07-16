@@ -1,5 +1,6 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IDbActivity, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
+import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { IGroup } from '@/assets/interfaces/GroupInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { parseFirebaseGroup } from '@/assets/ts/parsing';
@@ -8,7 +9,7 @@ import AvailableTimesModal from '@/components/AvailableTimesModal';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import i18next from 'i18next';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,6 +34,7 @@ const Planning = () => {
   const router = useRouter();
   const { user } = useUser();
   const [selectedGroupId, setSelectedGroupId] = useState("")
+  const { groupIdParameter }: IFirebaseSearchParameter = useLocalSearchParams();
 
 
   // Reset all state variables when navigating away
@@ -55,6 +57,12 @@ const Planning = () => {
   const removeTimeSlot = (timeSlot: ITimeInterval) => {
     setTimeSlot((prev) => prev.filter((slot) => slot.slots !== timeSlot));
   }
+
+  useEffect(() => {
+    if (groupIdParameter) {
+      setSelectedGroupId(groupIdParameter);
+    }
+  }, [groupIdParameter]);
 
   const fetchUserGroups = useCallback((): Promise<IGroup[]> | null => {
     if (user && user.groupUuids && user.groupUuids.length > 0) {
@@ -209,7 +217,7 @@ const Planning = () => {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView showsVerticalScrollIndicator={false} style={{ margin: theme.spacing.small }}>
         <View>
           {/** Name */}
@@ -223,14 +231,14 @@ const Planning = () => {
           <View style={{ marginBottom: theme.spacing.large }}>
             <Text style={theme.typography.heading2}>{t("planning.activityGroup")}</Text>
             {userGroups.length > 0 ?
-              <Picker style={theme.typography.body} selectedValue={selectedGroupId} onValueChange={(groupId: string) => setSelectedGroupId(groupId)}>
-                <Picker.Item style={theme.typography.body} key={"default"} label={t("planning.noGroupSelected")} value={""} />
+              <Picker style={theme.typography.body} selectedValue={selectedGroupId} onValueChange={(groupId: string) => setSelectedGroupId(groupId)} dropdownIconColor={theme.colors.text}>
+                <Picker.Item style={theme.typography.body} key={"default"} label={t("planning.noGroupSelected")} value={""} color="black" />
                 {userGroups.map((group, index) => (
-                  <Picker.Item style={theme.typography.body} key={index} label={group.name} value={group.id} />
+                  <Picker.Item style={theme.typography.body} key={index} label={group.name} value={group.id} color="black" />
                 ))}
               </Picker>
               :
-              <View style={{ flexDirection: "row", gap: theme.spacing.small, width: "90%" }}>
+              <View style={{ flexDirection: "row", gap: theme.spacing.small, width: "90%", backgroundColor:theme.colors.background }}>
                 <uiIcon.InfoIcon size={24} color={theme.colors.primary} />
                 <Text style={theme.typography.body}>{t("planning.emptyUserGroupText")}</Text>
               </View>

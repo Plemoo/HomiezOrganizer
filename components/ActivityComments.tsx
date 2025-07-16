@@ -1,4 +1,5 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
+import { IActivityState } from '@/assets/interfaces/ActivityInterface';
 import { IComment, IDbComment } from '@/assets/interfaces/CommentInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
@@ -13,7 +14,7 @@ import LoadingDots from './Loading';
 import { useUser } from './ProfileInformationContext';
 import { useCustomTheme } from './ThemeContext';
 
-const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId: string }) => {
+const ActivityComments = ({ activityId, groupId, activityState }: { activityId: string, groupId: string, activityState: IActivityState | undefined }) => {
     const { theme } = useCustomTheme();
     const { t } = useTranslation();
     const uiIcon = useUiIcons();
@@ -46,20 +47,20 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
                     const updatedComments = [...(prevComments || []), newComment];
                     return sortCommentsByStartDate(updatedComments);
                 });
-            }else{
-                setComments(prev=>[...prev||[]])
+            } else {
+                setComments(prev => [...prev || []])
             }
         });
         return () => newCommentUnsub();
     }, [])
 
-  useEffect(() => {
-    if (Array.isArray(comments)) {
-      setIsLoading(false)
-    } else {
-      setIsLoading(true)
-    }
-  }, [comments])
+    useEffect(() => {
+        if (Array.isArray(comments)) {
+            setIsLoading(false)
+        } else {
+            setIsLoading(true)
+        }
+    }, [comments])
 
     const fetchAllCommentsForActivity = (): Promise<IComment[]> => {
         return FirebaseExchange.getAllDocumentsOfCollection("Group", groupId, "Activity", activityId, "Comment")
@@ -80,9 +81,14 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
         <View style={{ marginBottom: theme.spacing.medium }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: theme.spacing.small }}>
                 <Text style={theme.typography.heading2}>{t("activities.commentTitle")}</Text>
-                <Pressable onPress={() => setCommentTextModalVisible(true)} style={theme.rightCornerIcon}>
-                    <uiIcon.PlusIcon size={30} color={theme.colors.primary} />
-                </Pressable>
+                {activityState === "scheduled" || activityState === "pending" ?
+                    <Pressable onPress={() => setCommentTextModalVisible(true)} style={theme.rightCornerIcon}>
+                        <uiIcon.PlusIcon size={30} color={theme.colors.primary} />
+                    </Pressable>
+                :
+                null
+                }
+
             </View>
             <View>
                 <FlatList
@@ -100,7 +106,7 @@ const ActivityComments = ({ activityId, groupId }: { activityId: string, groupId
                                     padding: theme.spacing.small,
                                     marginBottom: theme.spacing.small
                                 },
-                                user &&item.userUuid === user.id ? { alignSelf: "flex-end" } : {}
+                                user && item.userUuid === user.id ? { alignSelf: "flex-end" } : {}
                             ]}
                         >
                             <View>

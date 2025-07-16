@@ -1,17 +1,19 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
-import { IActivitiesWithGroup, IActivity, IActivityWithGroupIcon } from '@/assets/interfaces/ActivityInterface';
-import { getUniqueActivitiesWithGroupIcon, sortActivitiesByDueDate, sortActivitiesByEarliestAvailability } from '@/assets/ts/componentFunctions/activities';
+import { IActivitiesWithGroup, IActivity, IActivityWithGroupIconAndName } from '@/assets/interfaces/ActivityInterface';
+import { getUniqueActivitiesWithGroupIcon, setStateForEndedActivitesToClosed, sortActivitiesByDueDate, sortActivitiesByEarliestAvailability } from '@/assets/ts/componentFunctions/activities';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import ActivityListItem from '@/components/ActivityListItem';
 import LoadingDots from '@/components/Loading';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { Unsubscribe } from '@react-native-firebase/firestore';
-import { Image } from 'expo-image';
+import { useFocusEffect } from 'expo-router';
+import * as jdenticon from 'jdenticon';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, ScrollView, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 const Activities = () => {
   const { user, userLoading } = useUser();
@@ -20,14 +22,21 @@ const Activities = () => {
   const uiIcons = useUiIcons()
   const { avatars } = useAvatarIcons()
   const [loading, setLoading] = useState(true)
-  const [scheduledActivities, setScheduledActivities] = useState<IActivityWithGroupIcon[]>([]);
-  const [pendingActivities, setPendingActivities] = useState<IActivityWithGroupIcon[]>([]);
-  // const isFocused = useIsFocused();
+  const [scheduledActivities, setScheduledActivities] = useState<IActivityWithGroupIconAndName[]>([]);
+  const [pendingActivities, setPendingActivities] = useState<IActivityWithGroupIconAndName[]>([]);
+
+
+  useFocusEffect(()=>{
+    // When the user focuses the Activities tab, we want to update the scheduled activities that are already closed
+    if(scheduledActivities.length>0){
+      setStateForEndedActivitesToClosed(scheduledActivities)
+    }
+  })
 
   useEffect(() => {
     let newActivityUnsubscribe: Unsubscribe | null = null;
     let newGroupWithActivitiesUnsubscribe: Unsubscribe | null = null;
-    let activityChangeListeners:Unsubscribe[] = [];
+    let activityChangeListeners: Unsubscribe[] = [];
     try {
       // if (!isFocused) throw new Error("Activities component is not focused, so no need to load activities.");
       if (!user) return
@@ -38,10 +47,10 @@ const Activities = () => {
         if (!newActivityWithGroup || !newActivityWithGroup.activities || newActivityWithGroup.activities.length !== 1) throw new Error("New activity with group is null or has no activities.");
         const firebaseAct = newActivityWithGroup.activities[0];
         if (firebaseAct.state === "pending") {
-          const activityByGroup: IActivityWithGroupIcon[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
+          const activityByGroup: IActivityWithGroupIconAndName[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
           setPendingActivities((prev) => getUniqueActivitiesWithGroupIcon(prev, activityByGroup).sort((activity1, activity2) => sortActivitiesByEarliestAvailability(activity1, activity2)));
         } else if (firebaseAct.state === "scheduled") {
-          const activityByGroup: IActivityWithGroupIcon[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
+          const activityByGroup: IActivityWithGroupIconAndName[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
           setScheduledActivities((prev) => getUniqueActivitiesWithGroupIcon(prev, activityByGroup).sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2)));
         }
         setLoading(false);
@@ -86,7 +95,7 @@ const Activities = () => {
     if (activityWithChange.state === "pending") {
       setPendingActivities((prev) => prev.map((act) => {
         if (act.id === activityWithChange.id) {
-          return { ...activityWithChange, groupIcon: act.groupIcon };
+          return { ...activityWithChange, groupIcon: act.groupIcon, groupName: act.groupName };
         }
         return act;
       }));
@@ -95,13 +104,13 @@ const Activities = () => {
       if (pendingActivities.some((act) => act.id === activityWithChange.id) && !scheduledActivities.some((act) => act.id === activityWithChange.id)) {
         // Add new Activity to Scheduled Activities and remove it from Pending Activities
         let oldActivity = pendingActivities.filter((act) => act.id === activityWithChange.id)[0];
-        setScheduledActivities((prev) => [...prev, { ...activityWithChange, groupIcon: oldActivity.groupIcon }]);
+        setScheduledActivities((prev) => [...prev, { ...activityWithChange, groupIcon: oldActivity.groupIcon, groupName: oldActivity.groupName }]);
         setPendingActivities((prev) => prev.filter((act) => act.id !== activityWithChange.id));
       } else {
         // Update Activity in Scheduled Activities
         setScheduledActivities((prev) => prev.map((act) => {
           if (act.id === activityWithChange.id) {
-            return { ...activityWithChange, groupIcon: act.groupIcon };
+            return { ...activityWithChange, groupIcon: act.groupIcon, groupName: act.groupName };
           }
           return act;
         }));
@@ -119,13 +128,14 @@ const Activities = () => {
   }
 
 
-  const getActivitiesWithGroupIcon = (activitiesWithGroup: IActivitiesWithGroup[], filterStatus: "pending" | "scheduled"): IActivityWithGroupIcon[] => {
+  const getActivitiesWithGroupIcon = (activitiesWithGroup: IActivitiesWithGroup[], filterStatus: "pending" | "scheduled"): IActivityWithGroupIconAndName[] => {
     return activitiesWithGroup.map((ag) => {
       return ag.activities
         .filter((activity) => activity.state === filterStatus)
         .map((activity) => ({
           ...activity,
-          groupIcon: ag.group.icon
+          groupIcon: ag.group.icon,
+          groupName: ag.group.name
         }))
     }).flat();
   }
@@ -145,7 +155,8 @@ const Activities = () => {
             <ActivityListItem
               activity={item}
               activityIcon={<uiIcons.CalendarWithOkIcon size={30} color={theme.colors.primary} />}
-              groupIcon={<Image style={{ width: 40, height: 40 }} source={avatars[item.groupIcon]} />}
+              // groupIcon={<Image style={{ width: 40, height: 40 }} source={avatars[item.groupIcon]} />}
+              groupIcon={<SvgXml xml={jdenticon.toSvg(item.groupName, 40)} width={40} height={40} />}
             />
           }
           ListEmptyComponent={() => (
@@ -166,7 +177,9 @@ const Activities = () => {
             <ActivityListItem
               activity={item}
               activityIcon={<uiIcons.CalendarWithClockIcon size={30} color={theme.colors.primary} />}
-              groupIcon={<Image style={{ width: 40, height: 40, borderRadius: 50 }} source={avatars[item.groupIcon]} />}
+              // groupIcon={<Image style={{ width: 40, height: 40, borderRadius: 50 }} source={avatars[item.groupIcon]} />}
+              groupIcon={<SvgXml xml={jdenticon.toSvg(item.groupName, 40)} width={40} height={40} />}
+
             />
           }
           ListEmptyComponent={() => (

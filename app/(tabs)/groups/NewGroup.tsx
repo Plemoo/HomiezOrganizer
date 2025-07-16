@@ -6,14 +6,13 @@ import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import GoBack from '@/components/GoBack';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import * as jdenticon from 'jdenticon';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableHighlight, View } from 'react-native';
-
+import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableHighlight, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 const { width, height } = Dimensions.get("window");
-// TODO:ICON GENERISCH ABBILDEN DAS ICON evlt über hook
 
 const NewGroup = () => {
   const { getRandomAvatarKey, avatars } = useAvatarIcons();
@@ -27,12 +26,6 @@ const NewGroup = () => {
   const uiIcons = useUiIcons();
 
 
-  const changeGroupIcon = () => {
-    //TODO: Implementieren
-  }
-
-
-  // TODO: Leave Group einbauen
   const submitNewGroup = () => {
     if (!user) {
       console.error("User is not set in NewGroup");
@@ -63,22 +56,22 @@ const NewGroup = () => {
             <Text style={[theme.typography.heading1, { textAlign: "center" }]}>{t("groups.newGroup")}</Text>
           </View>
           {/* Information */}
-          <View style={{ flexDirection: "row", gap: theme.spacing.medium }}>
+          <View style={{ flexDirection: "row"}}>
             <uiIcons.InfoIcon size={24} color="black" />
-            <Text style={theme.typography.body}>{t("groups.groupInformation")}</Text>
+            <Text style={[theme.typography.body,{marginLeft:theme.spacing.small, flexShrink:1}]}>{t("groups.groupInformation")}</Text>
           </View>
           {/* Icon */}
           <View style={{ marginVertical: theme.spacing.large }}>
             <Text style={[theme.typography.heading2, { marginBottom: theme.spacing.small }]}>{t("groups.groupIcon")}</Text>
             <View style={{ alignItems: "center" }}>
-              <Pressable onPress={changeGroupIcon}>
                 <View style={{ position: "relative", width: height * 0.2, height: height * 0.2, justifyContent: "center", alignItems: "center" }} >
-                  <Image style={{ width: height * 0.2, height: height * 0.2, borderRadius: theme.borderRadius.medium, borderColor: theme.colors.secondary, borderWidth: 2 }} source={avatars[groupIcon]} />
-                  <View style={{ position: "absolute", bottom: 5, right: 5 }} >
+                    <SvgXml xml={jdenticon.toSvg(groupName, height * 0.2)} width={height * 0.2} height={height * 0.2}/>
+
+                  {/* <Image style={{ width: height * 0.2, height: height * 0.2, borderRadius: theme.borderRadius.medium, borderColor: theme.colors.secondary, borderWidth: 2 }} source={avatars[groupIcon]} /> */}
+                  {/* <View style={{ position: "absolute", bottom: 5, right: 5 }} >
                     <uiIcons.EditIcon size={40} color={theme.colors.primary} />
-                  </View>
+                  </View> */}
                 </View>
-              </Pressable>
             </View>
           </View>
           {/* Gruppenname */}

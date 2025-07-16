@@ -1,14 +1,15 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
-import { IActivity, IDuration, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
+import { IActivity, IActivityState, IDuration, ITimeInterval, ITimeSlot } from '@/assets/interfaces/ActivityInterface';
 import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
-import { activityCancelConfirmationDialog } from '@/assets/ts/activityCancelDialog';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { parseFirebaseActivity, parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
 import { dayjs, formatDateAndTimeSmall } from '@/assets/ts/timeManagement';
 import ActivityComments from '@/components/ActivityComments';
 import ActivityDetailDetails from '@/components/ActivityDetailDetails';
+import { useAlert } from '@/components/AlertContext';
+
 import AvailableTimesModal from '@/components/AvailableTimesModal';
 import GoBack from '@/components/GoBack';
 import LoadingDots from '@/components/Loading';
@@ -21,7 +22,7 @@ import i18next from 'i18next';
 import { isEqual } from 'lodash';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, Pressable, ScrollView, Switch, Text, TouchableHighlight, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Switch, Text, TouchableHighlight, View } from 'react-native';
 
 const ActivityDetail = () => {
   const { user, userLoading } = useUser();
@@ -38,6 +39,7 @@ const ActivityDetail = () => {
   const [activityDuration, setActivityDuration] = useState<IDuration | undefined>();
   const [activityMinParticipants, setActivityMinParticipants] = useState<number | undefined>();
   const [activityDescription, setActivityDescription] = useState<string | undefined>();
+  const [activityState, setActivityState] = useState<IActivityState | undefined>();
   const [userActivityStatus, setUserActivityStatus] = useState<"accepted" | "declined" | "open">("open");
   const router = useRouter();
   const { t } = useTranslation();
@@ -45,14 +47,17 @@ const ActivityDetail = () => {
   const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
   const [newTimeSlotModalVisible, setNewTimeSlotModalVisible] = useState(false);
   const [timeSlotModalSelectionVisible, setTimeSlotModalSelectionVisible] = useState(false);
-
+  const { showAlert } = useAlert();
 
   useEffect(() => {
-    if(!user || userLoading) return;
+    if (!user || userLoading) return;
     let unsubscribe: (() => void) | undefined;
     if (activityIdParameter && groupIdParameter) {
       unsubscribe = FirebaseSnapshotListener.snapshotListenerForActivityDetailChange(groupIdParameter, activityIdParameter, (activityWithChange: IActivity | null) => {
         if (activityWithChange) {
+          if (!user.groupUuids?.includes(activityWithChange?.owningGroupId)) {
+            return null;
+          }
           if (activityWithChange.state === "cancelled" || activityWithChange.state === "closed") {
             router.replace("/(tabs)/activities/Activities")
             return null;
@@ -72,6 +77,7 @@ const ActivityDetail = () => {
           setActivityMinParticipants(activityWithChange.minParticipants);
           setActivityDescription(activityWithChange.description);
           setTimeSlotsPerUser(activityWithChange.timeSlotsPerUserUuid);
+          setActivityState(activityWithChange.state)
           // Fetch all the users of the Group/Activity
           FirebaseExchange.getFirebaseDocument(activityWithChange.owningGroupId, "Group")
             .then((groupDoc) => {
@@ -102,7 +108,7 @@ const ActivityDetail = () => {
       })
     }
     return () => unsubscribe?.();
-  }, [activityIdParameter, groupIdParameter,userLoading])
+  }, [activityIdParameter, groupIdParameter, userLoading])
 
 
   const addOrRemoveUserFromTimeSlot = (item: ITimeSlot) => {
@@ -122,7 +128,6 @@ const ActivityDetail = () => {
         setAcceptedOrOpenUserActivityStatus(newTimeSlotsPerUser);
         FirebaseExchange.updateFirebaseDocument(updatedActivity, "Group", groupId, "Activity", updatedActivity.id)
           .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
-        // TODO: Kompletten Zeitslot löschen, wenn kein user mehr drin ist? Überschneidendende Zeitslots behandeln?
       })
   }
 
@@ -243,24 +248,33 @@ const ActivityDetail = () => {
 
   const cancelActivityPressed = () => {
     if (!activityId || !groupId) return;
-    activityCancelConfirmationDialog(() => {
-      FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
-        .then((activityDoc) => parseFirebaseActivity(activityDoc))
-        .then((firebaseActivity) => {
-          if (!firebaseActivity) return;
-          // Lösche die Activity
-          FirebaseExchange.updateFirebaseDocument({ ...firebaseActivity, state: "cancelled" }, "Group", groupId, "Activity", firebaseActivity.id)
-            .then(() => router.replace("/activities/Activities")) // Gehe zurück
-            .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
-        });
-    })
+    showAlert({
+      title: t("activities.cancelActivity"),
+      message: t("activities.cancelDialog.cancelActivityText"),
+      confirmText: t("activities.cancelDialog.yesIamSure"),
+      cancelText: t("activities.cancelDialog.cancel"),
+      onConfirm: () => {
+        FirebaseExchange.getFirebaseDocument(activityId, "Group", groupId, "Activity")
+          .then((activityDoc) => parseFirebaseActivity(activityDoc))
+          .then((firebaseActivity) => {
+            if (!firebaseActivity) return;
+            // Lösche die Activity
+            FirebaseExchange.updateFirebaseDocument({ ...firebaseActivity, state: "cancelled" }, "Group", groupId, "Activity", firebaseActivity.id)
+              .then(() => router.replace("/activities/Activities")) // Gehe zurück
+              .catch((err) => FirebaseExchange.firebaseErrorHandling(err));
+          });
+      }
+    });
   }
 
   const submitActivityPressed = () => {
     if (!activityId || !groupId || !activityMinParticipants) return;
     let possibleTimeSlots = timeSlotsPerUser.filter((slot) => slot.userUuid.length >= activityMinParticipants);
     if (possibleTimeSlots.length === 0) {
-      Alert.alert(t("activities.noValidTimeSlotTitle"), t("activities.noValidTimeSlot"));
+      showAlert({
+        title: t("activities.noValidTimeSlotTitle"),
+        message: t("activities.noValidTimeSlot")
+      })
       return;
     }
     if (possibleTimeSlots.length > 1) {
@@ -318,7 +332,7 @@ const ActivityDetail = () => {
   if (!activityId || !groupId) return <LoadingDots visible />;
 
   return (
-    <ScrollView style={theme.containers.rootContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView style={theme.containers.rootContainer} contentContainerStyle={{rowGap: theme.spacing.medium}} showsVerticalScrollIndicator={false}>
       <GoBack />
       <View style={{ flexDirection: "row", justifyContent: "space-evenly" }}>
         <View>
@@ -410,7 +424,7 @@ const ActivityDetail = () => {
               </View>
               <View style={{ flexDirection: "row", gap: theme.spacing.medium }}>
                 <Pressable
-                  style={{ borderWidth: 2, backgroundColor: user &&item.userUuid.includes(user.id) ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
+                  style={{ borderWidth: 2, backgroundColor: user && item.userUuid.includes(user.id) ? theme.colors.okay : "transparent", borderColor: theme.colors.okay, borderRadius: theme.borderRadius.medium, padding: theme.spacing.small }}
                   onPress={() => addOrRemoveUserFromTimeSlot(item)}
                 >
                   <uiIcon.ThumbUpIcon size={30} color={theme.colors.primary} />
@@ -420,7 +434,7 @@ const ActivityDetail = () => {
           )}
         />
       </View>
-      <ActivityComments activityId={activityId} groupId={groupId} />
+      <ActivityComments activityId={activityId} groupId={groupId} activityState={activityState} />
       <View style={{ flexDirection: "row", justifyContent: "space-evenly", marginBottom: theme.spacing.xlarge, gap: theme.spacing.small }}>
         <TouchableHighlight style={[theme.button, { flex: 1 }]} onPress={() => cancelActivityPressed()}>
           <View style={{ gap: theme.spacing.small, marginHorizontal: theme.spacing.medium, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>

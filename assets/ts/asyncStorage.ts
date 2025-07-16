@@ -19,7 +19,7 @@ export class SecureStorageHandler {
 
 
   protected static overwriteSecureStore = (secureStoreKey: (keyof ILocalUser), secureStoreValue: TSecureStoreValueType): Promise<(keyof ILocalUser)> => {
-    let stringLocalUserKeys: (keyof ILocalUser)[] = ["id", "username", "icon", "language", "expoPushToken"];
+    let stringLocalUserKeys: (keyof ILocalUser)[] = ["id", "username", "icon", "language", "expoPushToken", "appearance"];
     let dateLocalUserKeys: (keyof ILocalUser)[] = ["birthday"];
     let timeArrayLocalUserKeys: (keyof ILocalUser)[] = ["busy", "available"];
     let stringArrayLocalUserKeys: (keyof ILocalUser)[] = ["groupUuids"];
@@ -62,7 +62,7 @@ export class SecureStorageHandler {
   }
 
   static getUserStoredInSecureStore = async (): Promise<ILocalUser | null> => {
-    const localStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language", "expoPushToken"];
+    const localStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language", "expoPushToken", "appearance"];
     const localStoragePromises = localStorageKeys.map((key) => SecureStore.getItemAsync(key));
     const localStorageValues = await Promise.all(localStoragePromises);
     const retrievedData: Record<string, any> = {};
@@ -73,7 +73,7 @@ export class SecureStorageHandler {
             retrievedData[key] = JSON.parse(localStorageValues[index]);
           } else if (key === "birthday") {
             retrievedData[key] = new Date(localStorageValues[index]);
-          } else if (key === "id" || key === "username" || key === "icon" || key === "language" || key === "expoPushToken") {
+          } else if (key === "id" || key === "username" || key === "icon" || key === "language" || key === "expoPushToken" || key === "appearance") {
             retrievedData[key] = localStorageValues[index];
           } else {
             throw new Error(`Unsupported key ${key} in Secure Storage`);

@@ -30,26 +30,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const initRandomUserIcon = getRandomAvatarKey()
   const userLanguage = getDefaultLanguage()
-  const initUserName = "New User"
-  // useEffect(() => {
-  //   let userUuidKey: keyof ILocalUser = "id";
-  //   SecureStore.getItemAsync(userUuidKey)
-  //     .then((userUuid) => {
-  //       FirebaseExchange.getFirebaseUserUid().then((firebaseUid) => {
-  //       }).catch((error) => {
-  //         console.error("Error retrieving Firebase UID in ProfileInformationContext:", error);
-  //       })
-  //       if (!userUuid) { // No User found in local storage, create new one
-  //         setUserIncludingLocalStorageAndFirebase({ ...newUser }).finally(() => setLoading(false))
-  //         console.log("No user found in secure store, creating new user with new ID");
-  //       } else {
-  //         // Async Storage has user id stored
-  //         console.log("User found in secure store with ID:", userUuid);
-  //         setExistingUserInContext().finally(() => setLoading(false));
-  //       }
-  //     });
-  // }, []);
-  // TODO: Hier so anpassen, dass wenn es ein neuer User ist, dass dieser dann neu angemeldet wird und onSnapshot die Inhalte befüllt
+  const initUserName = ""
+
+
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
     setLoading(true);
@@ -61,7 +44,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error("Error setting up user on startup in ProfileInformationContext:", error);
       });
     return () => {
-      console.log("Cleaning up user context in ProfileInformationContext", loading);
       if (unsubscribe) unsubscribe();
     }
   }, []);
@@ -91,6 +73,11 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return FirebaseSnapshotListener.snapshotListenerForUserChange(firebaseUserId, async (userWithChanges) => {
         // Firebase User HAS to exist, because it is created new in lines before + when user doesnt exist, a read is not allowed -> no Permisison exception
         if (!userWithChanges) throw new Error("User with changes is null or undefined in ProfileInformationContext (Should not happen, since not defined users result in no-permission)");
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        if(userWithChanges.expoPushToken !== tokenData.data){
+          userWithChanges.expoPushToken = tokenData.data; // Update the expo push token for the user
+          await FirebaseExchange.updateFirebaseDocument(userWithChanges, "User", firebaseUserId); // Write the new User into the firebase db
+        }
         SecureStorageHandler.updateSecureStore(userWithChanges).catch((error) => console.error("Error updating secure store with user changes in ProfileInformationContext:", error))
         setUser(userWithChanges); // Update the context state for the user
       });
@@ -105,6 +92,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return {
       id: newUserId,
       username: secureStoreUser?.username || initUserName,
+      appearance: secureStoreUser?.appearance || "light",
       icon: secureStoreUser?.icon || initRandomUserIcon,
       language: secureStoreUser?.language || userLanguage,
       ...(secureStoreUser?.busy ? { busy: secureStoreUser.busy } : {}),

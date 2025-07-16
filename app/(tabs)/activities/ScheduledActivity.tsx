@@ -1,4 +1,4 @@
-import { IActivity, IDuration, ITimeInterval } from '@/assets/interfaces/ActivityInterface';
+import { IActivity, IActivityState, IDuration, ITimeInterval } from '@/assets/interfaces/ActivityInterface';
 import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
@@ -26,10 +26,10 @@ const ScheduledActivity = () => {
     const [activityTime, setActivityTime] = useState<ITimeInterval | undefined>();
     const [activityDescription, setActivityDescription] = useState<string | undefined>();
     const [activityDuration, setActivityDuration] = useState<IDuration | undefined>();
+    const [activityState, setActivityState] = useState<IActivityState | undefined>();
     const router = useRouter();
     const { t } = useTranslation();
     const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
-
 
     const fetchUserDocumentsForSelectedTimeSlot = useCallback(async (activityWithChange: IActivity | null): Promise<null | FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>[]> => {
         if (activityWithChange) {
@@ -72,6 +72,7 @@ const ScheduledActivity = () => {
                     setActivityDescription(loadedActivity.description);
                     setActivityTime(loadedActivity.time);
                     setActivityDuration(loadedActivity.duration)
+                    setActivityState(loadedActivity.state)
                 }).catch((err) => {
                     FirebaseExchange.firebaseErrorHandling(err);
                     router.back();
@@ -111,7 +112,7 @@ const ScheduledActivity = () => {
                 <Text style={theme.typography.heading2}>{t("planning.activityDescription")}</Text>
                 <Text style={theme.typography.body}>{activityDescription}</Text>
             </View>
-            <ActivityComments activityId={activityId} groupId={groupId} />
+            <ActivityComments activityId={activityId} groupId={groupId} activityState={activityState} />
         </ScrollView>
     )
 }

@@ -14,8 +14,9 @@ export type IActivityState = z.infer<typeof ActivityStateSchema>;
 //   id: string;
 // }
 
-export interface IActivityWithGroupIcon extends IActivity {
+export interface IActivityWithGroupIconAndName extends IActivity {
   groupIcon:string;
+  groupName:string;
 }
 
 export interface IActivitiesWithGroup{

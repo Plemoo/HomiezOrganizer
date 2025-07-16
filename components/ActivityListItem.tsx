@@ -22,7 +22,7 @@ const ActivityListItem = ({ activityIcon, activity, groupIcon }: { activityIcon:
         }
         if (activity.state === "pending") {
             router.push({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams});
-        } else if (activity.state === "scheduled") {
+        } else if (activity.state === "scheduled" || activity.state === "closed") {
             router.push({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
         }
     }
@@ -32,8 +32,8 @@ const ActivityListItem = ({ activityIcon, activity, groupIcon }: { activityIcon:
             <View style={{ justifyContent: "center" }}>
                 {activityIcon}
             </View>
-            <View style={{ flexGrow: 1 }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", backgroundColor: "white" }}>
+            <View style={{ flexGrow: 1, width: "60%" }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", backgroundColor: theme.colors.background }}>
                     <Text style={[theme.typography.body, { textAlign: "center" }]}>{activity.name}</Text>
                 </View>
                 <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>

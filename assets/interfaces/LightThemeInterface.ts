@@ -1,4 +1,4 @@
-import { TextStyle, ViewStyle } from "react-native";
+import { DimensionValue, TextStyle, ViewStyle } from "react-native";
 
 export interface ITheme {
     colors: IThemeColors,
@@ -13,16 +13,22 @@ export interface ITheme {
     rightCornerIcon: IThemeRightCornerIcon;
 }
 
+interface IThemeModalBoxContainer {
+    width: DimensionValue;
+    backgroundColor: string;
+    borderRadius: number;
+    padding: number;
+}
 
-interface IThemeLeftCornerIcon extends IThemeTopCornerIcon{
+interface IThemeLeftCornerIcon extends IThemeTopCornerIcon {
     left: number;
 }
 
-interface IThemeRightCornerIcon extends IThemeTopCornerIcon{
+interface IThemeRightCornerIcon extends IThemeTopCornerIcon {
     right: number;
 }
 
-interface IThemeTopCornerIcon{
+interface IThemeTopCornerIcon {
     position: ViewStyle["position"];
     top: number;
     zIndex: number;
@@ -32,7 +38,9 @@ interface IThemeContainer {
     rootContainer: IThemeRootContainer;
     leftAlignedContainer: IThemeAlignedContainer;
     centeredContainer: IThemeAlignedContainer;
-    headingWithIconContainer:IThemeHeadingWithIconContainer;
+    headingWithIconContainer: IThemeHeadingWithIconContainer;
+    modalContainer: IThemeModalContainer;
+    modalBoxContainer: IThemeModalBoxContainer;
 }
 
 
@@ -46,7 +54,7 @@ export interface IThemeBorderRadius {
 export interface IThemeInput {
     backgroundColor: string;
     borderRadius: number;
-    paddingLeft:number;
+    paddingLeft: number;
 }
 
 export interface IThemeSpacing {
@@ -68,7 +76,11 @@ interface IThemeAlignedContainer {
     alignItems?: ViewStyle["alignItems"];
 }
 
-interface IThemeHeadingWithIconContainer{
+interface IThemeModalContainer extends IThemeAlignedContainer {
+    backgroundColor: string;
+}
+
+interface IThemeHeadingWithIconContainer {
     flexDirection: ViewStyle["flexDirection"],
     justifyContent: ViewStyle["justifyContent"];
     alignItems?: ViewStyle["alignItems"];
@@ -99,17 +111,20 @@ export interface IThemeColors {
     textLight: string;
     primary: string;
     secondary: string;
-    okay:string;
-    error:string
+    okay: string;
+    error: string
 }
 
 interface IText {
     fontSize: number;
     fontWeight: TextStyle["fontWeight"];
-    lineHeight: number
+    lineHeight: number,
+    color: string;
+
 }
 
 // Define the shape of the context
 export interface IThemeContextType {
     theme: ITheme;
+    setTheme: (theme: ITheme) => void;
 }

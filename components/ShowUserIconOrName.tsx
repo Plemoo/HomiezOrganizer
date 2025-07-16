@@ -22,7 +22,7 @@ const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], 
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
                     <View key={index + "activityMemberIcon"}>
-                        <View style={{ borderRadius: 50, borderWidth: 2, borderColor: theme.colors.secondary, padding: 5 }}>
+                        <View style={{ borderRadius: 50, borderWidth: 2, borderColor: theme.colors.secondary, padding: 5, backgroundColor:theme.colors.secondary }}>
                             <Image
                                 style={{ height: 50, width: 50 }}
                                 source={avatars[item.icon]}
@@ -45,7 +45,7 @@ const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], 
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
                     <View key={index + "activityMemberName"}>
-                        <Text style={[theme.typography.heading3, { textAlign: "center" }]}>{item.username}</Text>
+                        <Text style={[theme.typography.body, { textAlign: "center" }]}>{item.username}</Text>
                     </View>
                 )}
             />

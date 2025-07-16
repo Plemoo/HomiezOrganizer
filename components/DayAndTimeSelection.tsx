@@ -152,7 +152,8 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
                     textMonthFontWeight: "bold",
                     textMonthFontSize: theme.typography.heading2.fontSize,
                     arrowColor: theme.colors.primary,
-
+                    backgroundColor: theme.colors.background,
+                    calendarBackground: theme.colors.background,
                     todayBackgroundColor: theme.colors.secondary,
                     monthTextColor: theme.colors.primary,
                     todayTextColor: theme.colors.primary,

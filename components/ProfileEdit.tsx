@@ -1,7 +1,9 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
+import { darkTheme } from '@/assets/ts/darkThemeProperties';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
+import { lightTheme } from '@/assets/ts/lightThemeProperties';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { Picker } from '@react-native-picker/picker';
@@ -16,11 +18,12 @@ const { height } = Dimensions.get('window'); // Get the screen width
 
 const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUser) => void }) => {
   const { user, userLoading: loading } = useUser();
-  const { theme } = useCustomTheme();
+  const { theme, setTheme } = useCustomTheme();
   const { t } = useTranslation();
   const [username, setUsername] = useState<string | undefined>();
   const [language, setLanguage] = useState<"de" | "en" | undefined>();
   const [userIcon, setUserIcon] = useState<string | undefined>();
+  const [userAppearance, setUserAppearance] = useState<"light" | "dark" | undefined>();
   const uiIcons = useUiIcons();
   const { avatars } = useAvatarIcons();
   const [iconPickerModalOpen, setIconPickerModalOpen] = useState(false)
@@ -31,14 +34,20 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
       console.error("Username, language, or user icon is not set in ProfileEdit");
       return;
     }
-    let updatedUser: ILocalUser = { ...user, username: username, language: language, icon: userIcon };
-    FirebaseExchange.updateFirebaseDocument(updatedUser,"User")
+    let updatedUser: ILocalUser = { ...user, username: username, language: language, icon: userIcon, appearance: userAppearance || "light" }; // Default to light theme if not set
+    FirebaseExchange.updateFirebaseDocument(updatedUser, "User")
+    if (userAppearance === "light") {
+      setTheme(lightTheme)
+    } else {
+      setTheme(darkTheme)
+    }
     changeLanguage(language); // Change the language in i18next
     returnToOverview(updatedUser)
   }
 
   useEffect(() => {
     if (user) {
+      setUserAppearance(user.appearance)
       setUsername(user.username); // Set the username from the user object or default to empty string
       setLanguage(user.language); // Set the language from the user object or default to "de"
       setUserIcon(user.icon); // Set the user icon from the user object or default to a placeholder icon
@@ -58,6 +67,7 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
         <Pressable onPress={() => setIconPickerModalOpen(true)}>
           <Image style={{ width: height * 0.3, height: height * 0.3, borderRadius: 200, backgroundColor: theme.colors.secondary }} source={avatars[userIcon!]} />
         </Pressable>
+        <uiIcons.EditIcon size={100} color={theme.colors.textLight} style={{ position: "absolute" }} onPress={() => setIconPickerModalOpen(true)} />
       </View>
       {/* Username */}
       <View style={theme.containers.centeredContainer}>
@@ -70,6 +80,7 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
           <TextInput
             value={username}
             onChangeText={(text) => setUsername(text)}
+            placeholder={t("settings.usernamePlaceholder")}
             style={theme.typography.body}
           />
         </View>
@@ -87,9 +98,19 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
       <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.xlarge }]}>
         <Text style={theme.typography.heading2}>{t("settings.language")}</Text>
         <View style={{ paddingBottom: theme.spacing.large }}>
-          <Picker onValueChange={(val: "de" | "en") => setLanguage(val)} selectedValue={language}>
-            <Picker.Item style={theme.typography.heading3} label={t("settings.languageGerman")} value={"de"} />
-            <Picker.Item style={theme.typography.heading3} label={t("settings.languageEnglish")} value={"en"} />
+          <Picker style={theme.typography.heading3} onValueChange={(val: "de" | "en") => setLanguage(val)} selectedValue={language} dropdownIconColor={theme.colors.text}>
+            <Picker.Item style={theme.typography.heading3} label={t("settings.languageGerman")} value={"de"} color="black" />
+            <Picker.Item style={theme.typography.heading3} label={t("settings.languageEnglish")} value={"en"} color="black" />
+          </Picker>
+        </View>
+      </View>
+      {/* User Appearance*/}
+      <View style={[theme.containers.leftAlignedContainer, { paddingTop: theme.spacing.xlarge }]}>
+        <Text style={theme.typography.heading2}>{t("settings.appearance")}</Text>
+        <View style={{ paddingBottom: theme.spacing.large }}>
+          <Picker style={theme.typography.heading3} onValueChange={(val: "light" | "dark") => setUserAppearance(val)} selectedValue={userAppearance} dropdownIconColor={theme.colors.text}>
+            <Picker.Item style={theme.typography.heading3} label={t("settings.lightTheme")} value={"light"} color="black" />
+            <Picker.Item style={theme.typography.heading3} label={t("settings.darkTheme")} value={"dark"} color="black" />
           </Picker>
         </View>
       </View>

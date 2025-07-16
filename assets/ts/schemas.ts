@@ -40,7 +40,8 @@ export const CommonUserSchema = z.object({
     username: z.string().optional(),
     groupUuids: z.array(z.string()).optional(),
     icon: z.string().default(""),
-    expoPushToken: z.string().optional()
+    expoPushToken: z.string().optional(),
+    appearance: z.enum(["light", "dark"]).default("light"), // Default to light theme
 });
 
 export const LocalUserSchema = CommonUserSchema.extend({

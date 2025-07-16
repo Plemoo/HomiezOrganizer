@@ -3,11 +3,11 @@ import { ITheme, IThemeColors, IThemeInput, IThemeSpacing, IThemeTypography } fr
 
 // Create the Theme Context
 const lightThemeColors: IThemeColors = {
-    background: 'white',
-    text: 'black',
-    textLight: "#fffafa", // Snow
-    primary: '#100c08', // Smoky Black
-    secondary: 'lightgray',
+    background: '#FFFFFF', // lightest
+    text: '#100C08', // darkest
+    textLight: "#fffafa", // 2nd lightest (Snow White)
+    primary: '#434546', // 2nd Darkest (Smoky Black)
+    secondary: '#E3DFDA', // in the middle
     error:"red",
     okay: "green"
 }
@@ -23,22 +23,26 @@ const lightThemeTypography: IThemeTypography = {
     heading1: {
         fontSize: 30,
         fontWeight: 'bold',
-        lineHeight: 36
+        lineHeight: 36,
+        color: lightThemeColors.text
     },
     heading2: {
         fontSize: 24,
         fontWeight: '600',
-        lineHeight: 32
+        lineHeight: 32,
+        color: lightThemeColors.text
     },
     heading3: {
         fontSize: 20,
         fontWeight: 'normal',
-        lineHeight: 28
+        lineHeight: 28,
+        color: lightThemeColors.text
     },
     body: {
         fontSize: 16,
         fontWeight: "normal",
-        lineHeight: 24
+        lineHeight: 24,
+        color: lightThemeColors.text
     }
 }
 
@@ -92,6 +96,18 @@ export const lightTheme: ITheme = {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center"
+        },
+        modalContainer: {
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: 'rgba(0,0,0,0.4)',
+        },
+        modalBoxContainer:{
+            width: '80%',
+            backgroundColor: lightThemeColors.textLight,
+            borderRadius: lightThemeBorderRadius.large,
+            padding: lightThemeSpacing.medium
         }
     },
     spacing: lightThemeSpacing,

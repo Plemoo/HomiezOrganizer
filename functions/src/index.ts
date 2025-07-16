@@ -21,8 +21,10 @@ const bodyCharacterLimit = 150; // Limit for the body of the notification
 // - Sende Erinnerungen für bevorstehende Aktivitäten
 // - Benachrichtigung wenn neuer Zeitslot hinzugefügt wird
 
+
+
 /**
- * Send notification if activity is scheduled or closed
+ * Send notification if activity is scheduled or closed OR if timeslot changed
  */
 export const sendActivityStateChangeNotification = onDocumentUpdated(
     {
@@ -30,7 +32,6 @@ export const sendActivityStateChangeNotification = onDocumentUpdated(
         region: "europe-west3"
     },
     async event => {
-        console.log("Cloud Function: sendActivityStateChangeNotification called");
         try {
             if (!event) throw new Error("No event data in cloud function:sendActivityStateChangeNotification")
             const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
@@ -43,52 +44,94 @@ export const sendActivityStateChangeNotification = onDocumentUpdated(
             const db = admin.firestore();
             // Aktivität angesetzt/gestartet
             if (beforeChange.state === "pending" && afterChange.state === "scheduled") {
-                const users = await getFirebaseUsersOfGroup(db, groupIdPara);
-                let expoPushNotifications: ExpoPushMessage[] = [];
-                if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when activity is scheduled`);
-                for (const user of users) {
-                    if (!user || !user.expoPushToken) continue;
-                    const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " findet statt" : "Activity " + afterChange.name + " scheduled";
-                    let notificationBody = user.language === "de" ? "Navigiere zur Aktivität für Details" : "Navigate to the activity for details";
-                    if (afterChange.time && afterChange.time.start && afterChange.time.end) {
-                        let startOfScheduledTime = afterChange.time.start.toDate();
-                        let endOfScheduledTime = afterChange.time.end.toDate();
-                        const formattedStart = formatDateAndTime(startOfScheduledTime, user.language || "de");
-                        const formattedEnd = formatDateAndTime(endOfScheduledTime, user.language || "de");
-                        notificationBody = user.language === "de" ? `Die Aktivität findet am ${formattedStart} bis ${formattedEnd} statt` : `The activity is scheduled for ${formattedStart} to ${formattedEnd}`;
-                    }
-                    const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityScheduled", groupIdPara, activityIdPara);
-                    expoPushNotifications.push(newNotification);
-                }
-                if (expoPushNotifications.length !== 0) {
-                    console.log("Publishing Expo push messages for activity state change:", expoPushNotifications.length);
-                    publishExpoPushMessage(expoPushNotifications)
-                } else {
-                    throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is scheduled`);
-                }
-            } else if (beforeChange.state === "pending" && afterChange.state === "cancelled") {
-                const users = await getFirebaseUsersOfGroup(db, groupIdPara);
-                let expoPushNotifications: ExpoPushMessage[] = [];
-                if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} for activity cancellation`);
-                for (const user of users) {
-                    if (!user || !user.expoPushToken) continue;
-                    const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " abgesagt" : "Activity " + afterChange.name + " cancelled";
-                    let notificationBody = user.language === "de" ? "Die Aktivität ist jetzt abgesagt" : "The activity is now cancelled";
-                    const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityCancelled", groupIdPara, activityIdPara);
-                    expoPushNotifications.push(newNotification);
-                }
-                if (expoPushNotifications.length !== 0) {
-                    console.log("Publishing Expo push messages for activity state change:", expoPushNotifications.length);
-                    publishExpoPushMessage(expoPushNotifications)
-                } else {
-                    throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is cancelled`);
-                }
+                await sendActivityScheduledNotification(db, afterChange, groupIdPara, activityIdPara);
+            }
+            if (beforeChange.state === "pending" && afterChange.state === "cancelled") {
+                await sendActivityCancelledNotification(db, afterChange, groupIdPara, activityIdPara);
+            }
+            if (beforeChange.state === "pending" && afterChange.state === "pending" && beforeChange.timeSlotsPerUserUuid.length > 0 && beforeChange.timeSlotsPerUserUuid.length < afterChange.timeSlotsPerUserUuid.length) {
+                await sendNewTimeslotForActivityNotification(db, afterChange, beforeChange, groupIdPara, activityIdPara);
             }
         } catch (error) {
             console.error("Error in sendActivityStateChangeNotification function:", error);
         }
     }
 )
+
+async function sendNewTimeslotForActivityNotification(db: admin.firestore.Firestore, afterChange: any, beforeChange: any, groupIdPara: string, activityIdPara: string) {
+    const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+    let expoPushNotifications: ExpoPushMessage[] = [];
+    if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when new timeslot is added`);
+    for (const user of users) {
+        if (!user || !user.expoPushToken) continue;
+        if (afterChange.declinedUserUuids && afterChange.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
+        const notificationTitle = user.language === "de" ? "Neuer Zeitslot für Aktivität " + afterChange.name : "New timeslot for activity " + afterChange.name;
+        let notificationBody = user.language === "de" ? "Ein neuer Zeitslot wurde hinzugefügt" : "A new timeslot has been added";
+        let newTimeSlot = afterChange.timeSlotsPerUserUuid.filter((slot: any) => !containsTimeSlot(beforeChange, slot.slots));
+        if (newTimeSlot.length === 1) {
+            if (newTimeSlot[0].userUuid.includes(user.id)) continue; // Skip notification if the user is the one who added the timeslot
+            notificationBody += `: ${formatDateAndTime(newTimeSlot[0].slots.start.toDate(), user.language)} - ${formatDateAndTime(newTimeSlot[0].slots.end.toDate(), user.language)}`;
+        } else {
+            console.error("ERROR: Not exactly one timeslot found", newTimeSlot)
+        }
+        const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "newTimeslot", groupIdPara, activityIdPara);
+        expoPushNotifications.push(newNotification);
+    }
+    if (expoPushNotifications.length !== 0) {
+        publishExpoPushMessage(expoPushNotifications)
+    } else {
+        throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is cancelled`);
+    }
+}
+
+function containsTimeSlot(beforeChange: any, afterSlot: any) {
+    return beforeChange.timeSlotsPerUserUuid.some((s: any) => s.slots.start.toMillis() === afterSlot.start.toMillis() && s.slots.end.toMillis() === afterSlot.end.toMillis());
+}
+
+async function sendActivityCancelledNotification(db: admin.firestore.Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
+    const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+    let expoPushNotifications: ExpoPushMessage[] = [];
+    if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} for activity cancellation`);
+    for (const user of users) {
+        if (!user || !user.expoPushToken) continue;
+        if (afterChange.declinedUserUuids && afterChange.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
+        const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " abgesagt" : "Activity " + afterChange.name + " cancelled";
+        let notificationBody = user.language === "de" ? "Die Aktivität ist jetzt abgesagt" : "The activity is now cancelled";
+        const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityCancelled", groupIdPara, activityIdPara);
+        expoPushNotifications.push(newNotification);
+    }
+    if (expoPushNotifications.length !== 0) {
+        publishExpoPushMessage(expoPushNotifications)
+    } else {
+        throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is cancelled`);
+    }
+}
+
+async function sendActivityScheduledNotification(db: admin.firestore.Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
+    const users = await getFirebaseUsersOfGroup(db, groupIdPara);
+    let expoPushNotifications: ExpoPushMessage[] = [];
+    if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when activity is scheduled`);
+    for (const user of users) {
+        if (!user || !user.expoPushToken) continue;
+        if (afterChange.declinedUserUuids && afterChange.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
+        const notificationTitle = user.language === "de" ? "Aktivität " + afterChange.name + " findet statt" : "Activity " + afterChange.name + " scheduled";
+        let notificationBody = user.language === "de" ? "Navigiere zur Aktivität für Details" : "Navigate to the activity for details";
+        if (afterChange.time && afterChange.time.start && afterChange.time.end) {
+            let startOfScheduledTime = afterChange.time.start.toDate();
+            let endOfScheduledTime = afterChange.time.end.toDate();
+            const formattedStart = formatDateAndTime(startOfScheduledTime, user.language || "de");
+            const formattedEnd = formatDateAndTime(endOfScheduledTime, user.language || "de");
+            notificationBody = user.language === "de" ? `Die Aktivität findet am ${formattedStart} bis ${formattedEnd} statt` : `The activity is scheduled for ${formattedStart} to ${formattedEnd}`;
+        }
+        const newNotification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "activityScheduled", groupIdPara, activityIdPara);
+        expoPushNotifications.push(newNotification);
+    }
+    if (expoPushNotifications.length !== 0) {
+        publishExpoPushMessage(expoPushNotifications)
+    } else {
+        throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when activity is scheduled`);
+    }
+}
 
 /**
  * Send notification to whole group when a new comment is added to an activity
@@ -100,7 +143,6 @@ export const sendNewCommentForActivityNotification = onDocumentCreated(
     },
     async event => {
         try {
-            console.log("Cloud Function: sendNewCommentForActivityNotification called");
             if (!event) throw new Error("No event data in cloud function:sendNewCommentForActivityNotification");
             const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
             if (!snap) throw new Error("No data in cloud function, nothing to do");
@@ -118,6 +160,7 @@ export const sendNewCommentForActivityNotification = onDocumentCreated(
                 const language = user.language || "en"; // Default to English if no language is set
                 let notificationTitle = language === "de" ? "Neues Kommentar" : "New comment";
                 if (activitySnap && activitySnap.exists && activitySnap.data()?.name) {
+                    if (activitySnap.data()?.declinedUserUuids && activitySnap.data()?.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
                     notificationTitle += " in " + activitySnap.data()!.name;
                 }
                 let notificationBody = comment.userName + ": " + (comment.text.length > bodyCharacterLimit ? comment.text.substring(0, bodyCharacterLimit) + "..." : comment.text);
@@ -125,7 +168,6 @@ export const sendNewCommentForActivityNotification = onDocumentCreated(
                 expoNotifications.push(notification);
             }
             if (expoNotifications.length !== 0) {
-                console.log("Publishing Expo push messages for new comment:", expoNotifications.length);
                 publishExpoPushMessage(expoNotifications)
             } else {
                 throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when new comment is added`);
@@ -145,7 +187,6 @@ export const sendNewActivityNotification = onDocumentCreated(
         region: "europe-west3"
     },
     async event => {
-        console.log("Cloud Function: sendNewActivityNotification called");
         try {
             if (!event) throw new Error("No event data in cloud function:sendNewActivityNotification");
             const snap = event.data  // v2 event.data is a FirestoreDocumentSnapshot
@@ -161,6 +202,7 @@ export const sendNewActivityNotification = onDocumentCreated(
             let expoNotifications: ExpoPushMessage[] = [];
             for (const user of users) {
                 if (!user || !user.expoPushToken) continue;
+                if (activity.declinedUserUuids && activity.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
                 if (!user.id || !activity.createdBy || user.id === activity.createdBy) continue; // Do not send notification to the user who created the activity
                 const language = user.language || "en"; // Default to English if no language is set
                 const notificationTitle = language === "de" ? "Neue Aktivität erstellt" : "New activity created";
@@ -172,7 +214,6 @@ export const sendNewActivityNotification = onDocumentCreated(
                 expoNotifications.push(notification);
             }
             if (expoNotifications.length !== 0) {
-                console.log("Publishing Expo push messages for new activity:", expoNotifications);
                 publishExpoPushMessage(expoNotifications)
             } else {
                 throw new Error(`No Expo push notifications created for group with ID ${groupIdPara} when new activity is created`);
@@ -187,19 +228,21 @@ function createNotification(
     token: string,
     title: string,
     body: string,
-    customNotificationType: "newActivity" | "newComment" | "activityScheduled" | "activityCancelled",
+    customNotificationType: "newActivity" | "newComment" | "activityScheduled" | "activityCancelled" | "newTimeslot",
     groupIdPara: string,
     activityIdPara: string
 ): ExpoPushMessage {
     let imageUrl;
-    if(customNotificationType === "newActivity") {
+    if (customNotificationType === "newActivity") {
         imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/newActivity.png";
-    }else if(customNotificationType === "newComment") {
+    } else if (customNotificationType === "newComment") {
         imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/notification.png";
-    }else if(customNotificationType === "activityScheduled") {
+    } else if (customNotificationType === "activityScheduled") {
         imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/activityScheduled.png";
-    }else if(customNotificationType === "activityCancelled") {
+    } else if (customNotificationType === "activityCancelled") {
         imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/activityCancelled.png";
+    } else if (customNotificationType === "newTimeslot") {
+        imageUrl = "https://yogaroma-julie.de/img/homiesOrganizer/newActivity.png";
     }
     let notificationData = {
         type: customNotificationType,
@@ -215,7 +258,7 @@ function createNotification(
         body: body,
         data: notificationData as unknown as Record<string, unknown>,
         richContent: {
-            image:imageUrl
+            image: imageUrl
         }
     }
     return notification
@@ -223,7 +266,6 @@ function createNotification(
 
 
 function publishExpoPushMessage(messages: ExpoPushMessage[]) {
-    console.log("Publishing Expo push messages:", messages);
     return Promise.all(expo.chunkPushNotifications(messages)
         .map((chunk) => expo.sendPushNotificationsAsync(chunk)))
 }

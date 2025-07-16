@@ -1,4 +1,4 @@
-import { IActivity, IActivityWithGroupIcon } from "@/assets/interfaces/ActivityInterface"
+import { IActivity, IActivityWithGroupIconAndName } from "@/assets/interfaces/ActivityInterface"
 import { IGroup } from "@/assets/interfaces/GroupInterface"
 import { FirebaseExchange } from "../firebaseExchange"
 import { parseFirebaseActivity, parseFirebaseGroup } from "../parsing"
@@ -42,8 +42,8 @@ export const sortActivitiesByDueDate = (activity1: IActivity, activity2: IActivi
 };
 
 export const sortActivitiesByEarliestAvailability = (activity1: IActivity, activity2: IActivity): number => {
-    const activity1StartTimes = activity1.timeSlotsPerUserUuid.map(slot=>slot.slots).flat().map(slot=>slot.start.getTime());
-    const activity2StartTimes = activity2.timeSlotsPerUserUuid.map(slot=>slot.slots).flat().map(slot=>slot.start.getTime());
+    const activity1StartTimes = activity1.timeSlotsPerUserUuid.map(slot => slot.slots).flat().map(slot => slot.start.getTime());
+    const activity2StartTimes = activity2.timeSlotsPerUserUuid.map(slot => slot.slots).flat().map(slot => slot.start.getTime());
     const earliestActivity1 = activity1StartTimes.length > 0 ? Math.min(...activity1StartTimes) : null;
     const earliestActivity2 = activity2StartTimes.length > 0 ? Math.min(...activity2StartTimes) : null;
     if (earliestActivity1 === null && earliestActivity2 === null) return 0;
@@ -52,11 +52,23 @@ export const sortActivitiesByEarliestAvailability = (activity1: IActivity, activ
     return earliestActivity1 - earliestActivity2;
 };
 
-export const getUniqueActivitiesWithGroupIcon = (oldActivitesByGroupIcon: IActivityWithGroupIcon[], newActivitesByGroupIcon: IActivityWithGroupIcon[]): IActivityWithGroupIcon[] => {
-    const uniqueActivities = new Map<string, IActivityWithGroupIcon>();
-    oldActivitesByGroupIcon.forEach(actWithIcon => uniqueActivities.set(actWithIcon.id, actWithIcon));
+export const getUniqueActivitiesWithGroupIcon = (oldActivitesByGroupIcon: IActivityWithGroupIconAndName[], newActivitesByGroupIcon: IActivityWithGroupIconAndName[]): IActivityWithGroupIconAndName[] => {
+    const uniqueActivities = new Map<string, IActivityWithGroupIconAndName>();
+    oldActivitesByGroupIcon.forEach(actWithIconAndName => uniqueActivities.set(actWithIconAndName.id, actWithIconAndName));
     // Overwrite existing groups with new ones
-    newActivitesByGroupIcon.forEach(actWithIcon => uniqueActivities.set(actWithIcon.id, actWithIcon));
+    newActivitesByGroupIcon.forEach(actWithIconAndName => uniqueActivities.set(actWithIconAndName.id, actWithIconAndName));
 
     return Array.from(uniqueActivities.values());
 };
+
+export const setStateForEndedActivitesToClosed = (activities: IActivity[]) => {
+    activities
+        .filter((a) => a.state === "scheduled")
+        .filter((sa) => sa.time)
+        .filter((sa) => sa.time!.end.getTime() < Date.now())
+        .forEach((sa) => {
+            const stateKey: keyof IActivity = "state";
+            const stateKeyValue: IActivity["state"] = "closed";
+            FirebaseExchange.updateFirestoreValueOfKey(sa.id, "Group", stateKey, stateKeyValue, sa.owningGroupId, "Activity")
+        });
+}

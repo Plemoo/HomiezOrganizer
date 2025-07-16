@@ -1,14 +1,14 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-export const unstable_settings = {
-  initialRouteName: 'Settings', // or your default screen
-};
-
+// export const unstable_settings = {
+//   initialRouteName: 'Settings', // or your default screen
+// };
+// TODO: Settings mit Einträgen füllen
 const SettingLayout = () => {
   return (
     <Stack screenOptions={{ headerShown: false}}>
-        <Stack.Screen name="Settings"/>
+        {/* <Stack.Screen name="Settings"/> */}
         <Stack.Screen name="Profile"/>
     </Stack>
   )

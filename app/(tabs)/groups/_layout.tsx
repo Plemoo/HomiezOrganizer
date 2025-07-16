@@ -1,9 +1,9 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-export const unstable_settings = {
-  initialRouteName: 'Groups', // or your default screen
-};
+// export const unstable_settings = {
+//   initialRouteName: 'Groups', // or your default screen
+// };
 
 const GroupLayout = () => {
     return (

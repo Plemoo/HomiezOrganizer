@@ -1,6 +1,11 @@
 import { ITheme, IThemeContextType } from '@/assets/interfaces/LightThemeInterface';
 import { lightTheme } from '@/assets/ts/lightThemeProperties';
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+// import { lightTheme } from '@/assets/ts/lightThemeProperties';
+
+import { darkTheme } from '@/assets/ts/darkThemeProperties';
+import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { useUser } from './ProfileInformationContext';
 
 
 const ThemeContext = createContext<IThemeContextType | undefined>(undefined);
@@ -8,11 +13,22 @@ const ThemeContext = createContext<IThemeContextType | undefined>(undefined);
 // Create a Theme Provider component
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<ITheme>(lightTheme); // Default theme
-
+  const { user, userLoading } = useUser();
+  useEffect(()=>{
+    if(user && !userLoading) {
+      if(user.appearance === "dark") {
+        setTheme(darkTheme)
+      }else{
+        setTheme(lightTheme);
+      }
+    }
+  },[user, userLoading])
 
   return (
-    <ThemeContext.Provider value={{ theme }}>
-      {children}
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <View style={{ flex: 1, backgroundColor: "white" }}>
+        {children}
+      </View>
     </ThemeContext.Provider>
   );
 };

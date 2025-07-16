@@ -7,17 +7,17 @@ import "../assets/ts/firebaseConfig";
 
 const Startpage = () => {
   const [isConnected, setIsConnected] = useState(false);
-  const { user, userLoading: loading } = useUser();
+  const { user, userLoading } = useUser();
 
   useEffect(() => {
-    if (!loading) {
+    if (!userLoading) {
       // Check initial connection status
       NetInfo.fetch().then(state => {
         setIsConnected(state.isConnected ? true : false);
         // redirectOnStart(state.isConnected ? true : false);
       });
     }
-  }, [loading]);
+  }, [userLoading]);
 
 
   // function redirectOnStart(hasInternet: boolean) {
@@ -36,10 +36,10 @@ const Startpage = () => {
   //   return isRedirect;
   // }
 
-  if (loading || !isConnected || !user) { // Loading screen bei keinem Internet oder wenn es geladen wird
+  if (userLoading || !isConnected || !user) { // Loading screen bei keinem Internet oder wenn es geladen wird
     return <LoadingDots visible />
-  } else if (user && !user.username) {
-    return <Redirect href={"/(tabs)/settings/Profile"} />;
+  } else if (user && (!user.username || user.username === "")) { // User is not defined -> Redirect to profile page
+    return <Redirect href={{ pathname: "/(tabs)/settings/Profile", params: { isEditMode: "true" } }} />;
   } else {
     return <Redirect href={"/(tabs)/activities/Activities"} />;
   }

@@ -4,7 +4,7 @@ import { IActivity } from '@/assets/interfaces/ActivityInterface';
 import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { IGroup } from '@/assets/interfaces/GroupInterface';
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
-import { sortActivitiesByDueDate } from '@/assets/ts/componentFunctions/activities';
+import { setStateForEndedActivitesToClosed, sortActivitiesByDueDate } from '@/assets/ts/componentFunctions/activities';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { createInviteLink } from '@/assets/ts/groupInvite';
 import { parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
@@ -17,11 +17,12 @@ import ShowUserIconOrName from '@/components/ShowUserIconOrName';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { UnknownInputParams, useLocalSearchParams, useRouter } from 'expo-router';
+import * as jdenticon from 'jdenticon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 const GroupDetail = () => {
   const router = useRouter();
@@ -74,6 +75,8 @@ const GroupDetail = () => {
             allActivitiesOfGroup.filter(activity => activity.state === "closed" || activity.state === "cancelled")
               .sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2))
           );
+          // Set ended Activities to closed
+          setStateForEndedActivitesToClosed(allActivitiesOfGroup)
         }
       })
       .catch((err) => console.error("Error during Group Detail firebase loading", err))
@@ -137,9 +140,13 @@ const GroupDetail = () => {
       )}
       <View style={[theme.containers.leftAlignedContainer, { gap: theme.spacing.medium }]}>
         <GoBack />
-        <uiIcon.LinkIcon size={30} color={theme.colors.primary} style={theme.rightCornerIcon} onPress={() => sendGroupInvite()} />
-        <View style={{ flexDirection: "row", justifyContent: "flex-start", gap: theme.spacing.medium, marginHorizontal: 40 }}>
-          <Image style={{ width: 50, height: 50 }} source={avatars[group!.icon]} />
+        <View style={[theme.rightCornerIcon, { alignItems: "flex-end" }]}>
+          <uiIcon.LinkIcon size={30} color={theme.colors.primary} onPress={() => sendGroupInvite()} />
+          <Text style={[theme.typography.body, { fontSize: 9, lineHeight: 12 }]}>{t("groups.shareGroupLink")}</Text>
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "flex-start", alignItems: "center", gap: theme.spacing.medium, marginHorizontal: 40 }}>
+          <SvgXml xml={jdenticon.toSvg(group!.name, 50)} width={50} height={50} />
+          {/* <Image style={{ width: 50, height: 50 }} source={avatars[group!.icon]} /> */}
           <Text style={[theme.typography.heading1, { flexShrink: 1 }]}>{group?.name}</Text>
         </View>
         <View>
@@ -161,7 +168,7 @@ const GroupDetail = () => {
         <View>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
             <Text style={theme.typography.heading2}>{t("groups.futureGroupActivities")}</Text>
-            <Pressable onPress={() => router.push("/(tabs)/planning/Planning")}>
+            <Pressable onPress={() => router.push({ pathname: "/(tabs)/planning/Planning", params: { groupIdParameter: group?.id } as IFirebaseSearchParameter as UnknownInputParams })}>
               <uiIcon.PlusIcon size={30} color={theme.colors.primary} />
             </Pressable>
           </View>

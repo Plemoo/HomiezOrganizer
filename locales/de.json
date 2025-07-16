@@ -15,7 +15,18 @@
     "pastGroupActivitesEmptyText": "Alle vergangenen Aktivitäten der Gruppe werden hier dargestellt",
     "futureGroupActivitesEmptyText": "Plane einen neue Aktivität in der Gruppe um sie hier zu sehen",
     "groupLinkShareError": "Der Gruppenlink konnte nicht in die Zwischenablage kopiert werden. Bitte schließe die App und versuche es erneut.",
-    "groupLinkShareSuccess": "Der Gruppenlink wurde in die Zwischenablage kopiert. Teile ihn mit deinen Freunden, damit sie deiner Gruppe beitreten können."
+    "groupLinkShareSuccess": "Der Gruppenlink wurde in die Zwischenablage kopiert. Teile ihn mit deinen Freunden, damit sie deiner Gruppe beitreten können.",
+    "shareGroupLink": "Gruppenlink \n teilen",
+    "leaveGroupDialog": {
+      "title": "Gruppe verlassen?",
+      "cancel": "Abbrechen",
+      "yesIamSure": "Ja, ich bin sicher",
+      "leaveGroupText": "Bist du dir sicher, dass du die Gruppe verlassen möchtest? Du wirst nicht mehr an Aktivitäten dieser Gruppe teilnehmen können."
+    },
+    "joinGroupErrorDialog": {
+      "title": "Einladung abgelaufen",
+      "message": "Der Einladungslink ist abgelaufen. Er ist älter als 10 Tage."
+    }
   },
   "activities": {
     "activitiesTitle": "Aktivitäten",
@@ -79,6 +90,7 @@
   "settings": {
     "settingsTitle": "Einstellungen",
     "username": "Benutzername",
+    "usernamePlaceholder": "Gib deinen Benutzernamen ein",
     "editProfile": "Profil bearbeiten",
     "birthday": "Geburtstag",
     "busyTimes": "Abwesende Zeiten",
@@ -95,7 +107,10 @@
     "personalAvailabilitySubtext": "Trage deine Abwesenheiten und Verfügbarkeiten ein",
     "language": "Sprache",
     "languageGerman": "Deutsch",
-    "languageEnglish": "Englisch"
+    "languageEnglish": "Englisch",
+    "appearance": "Aussehen",
+    "lightTheme": "Helles Erscheinungsbild",
+    "darkTheme": "Dunkles Erscheinungsbild"
   },
   "common": {
     "submit": "Bestätigen",

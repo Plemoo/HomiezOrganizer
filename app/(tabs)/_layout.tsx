@@ -1,10 +1,11 @@
+import { useUser } from "@/components/ProfileInformationContext";
+import { useCustomTheme } from "@/components/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
 import { ParamListBase, RouteProp } from "@react-navigation/native";
 import { Tabs } from "expo-router";
 import { TFunction } from "i18next";
-import { I18nextProvider, useTranslation } from "react-i18next";
-import i18n from "../../assets/ts/i18next";
+import { useTranslation } from "react-i18next";
 enum TAB_NAMES {
   GROUPS = "groups",
   PLANNING = "planning",
@@ -13,16 +14,21 @@ enum TAB_NAMES {
 }
 export default function TabLayout() {
   const { t } = useTranslation();
+  const { user } = useUser();
+  const { theme } = useCustomTheme();
 
   return (
-    <I18nextProvider i18n={i18n}>
-      <Tabs screenOptions={{ tabBarActiveTintColor: "black", tabBarInactiveBackgroundColor: "white", headerShown:false }}>
-        <Tabs.Screen name={TAB_NAMES.GROUPS} options={({ route }) => defineTabOptions(route, t)} />
-        <Tabs.Screen name={TAB_NAMES.PLANNING} options={({ route }) => defineTabOptions(route, t)} />
-        <Tabs.Screen name={TAB_NAMES.ACTIVITIES} options={({ route }) =>defineTabOptions(route, t, { tabBarBadge: 3 })} />
-        <Tabs.Screen name={TAB_NAMES.SETTINGS} options={({ route }) => defineTabOptions(route, t, { tabBarBadge: "!", tabBarBadgeStyle: { fontWeight: "bold" } })} />
-      </Tabs>
-    </I18nextProvider>
+    <Tabs screenOptions={{
+      tabBarActiveTintColor: theme.colors.text,
+      tabBarInactiveBackgroundColor: theme.colors.background,
+      headerShown: false,
+      tabBarStyle: { backgroundColor: theme.colors.background, borderTopColor: theme.colors.text, borderTopWidth: 0.5 },
+    }}>
+      <Tabs.Screen name={TAB_NAMES.GROUPS} options={({ route }) => defineTabOptions(route, t)} />
+      <Tabs.Screen name={TAB_NAMES.PLANNING} options={({ route }) => defineTabOptions(route, t)} />
+      <Tabs.Screen name={TAB_NAMES.ACTIVITIES} options={({ route }) => defineTabOptions(route, t)} /> 
+      <Tabs.Screen name={TAB_NAMES.SETTINGS} options={({ route }) => defineTabOptions(route, t, user?.username ? undefined : { tabBarBadge: "!" })} />
+    </Tabs>
   )
 }
 

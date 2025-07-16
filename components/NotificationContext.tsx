@@ -62,7 +62,6 @@ export function NotificationsProvider({
         }
     }
 
-    // TODO: UserLoading Changes are not registered
     // Listen for notifications
     useEffect(() => {
         let responseListener: Notifications.EventSubscription | null = null;
@@ -123,7 +122,8 @@ export function NotificationsProvider({
         } else if (notificationData.data.type === "activityCancelled") {
             // Handle activityCancelled
             router.replace({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams });
-
+        } else if (notificationData.data.type === "newTimeslot") {
+            router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
         }
 
     }

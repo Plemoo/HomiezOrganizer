@@ -15,7 +15,18 @@
     "pastGroupActivitesEmptyText": "All past activities of the group will be displayed here",
     "futureGroupActivitesEmptyText": "Plan new Activities in the group to see it here",
     "groupLinkShareError": " The group link could not be copied to the clipboard. Please close the app and try again.",
-    "groupLinkShareSuccess": " The group link has been copied to the clipboard. Share it with your friends to let them join your group."
+    "groupLinkShareSuccess": " The group link has been copied to the clipboard. Share it with your friends to let them join your group.",
+    "shareGroupLink": "Share \n Group \n Link",
+    "leaveGroupDialog": {
+      "title": "Leave Group",
+      "cancel": "Cancel",
+      "yesIamSure": "Yes, I'm sure",
+      "leaveGroupText": "Are you sure you want to leave the group? You will no longer be able to participate in activities of this group."
+    },
+    "joinGroupErrorDialog": {
+      "title": "Invitation expired",
+      "message": "The invitation link has expired. It is older than 10 days."
+    }
   },
   "activities": {
     "activitiesTitle": "Activities",
@@ -80,6 +91,7 @@
     "settingsTitle": "Settings",
     "editProfile": "Edit profile",
     "username": "Username",
+    "usernamePlaceholder": "Enter your username",
     "birthday": "Birthday",
     "busyTimes": "Busy times",
     "availableTimes": "Available times",
@@ -95,7 +107,10 @@
     "personalAvailabilitySubtext": "Enter you busy and available times",
     "language": "Language",
     "languageGerman": "German",
-    "languageEnglish": "English"
+    "languageEnglish": "English",
+    "appearance": "Appearance",
+    "lightTheme": "Light Theme",
+    "darkTheme": "Dark Theme"
   },
   "common": {
     "submit": "Submit",
