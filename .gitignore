@@ -40,7 +40,11 @@ app-example
 #firebase
 firebase-export*
 emulator-data
+.firebase/
 
 secure/
 android/
 ios/
+coverage/
+
+.vscode/

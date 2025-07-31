@@ -407,7 +407,7 @@ const ActivityDetail = () => {
       <View>
         <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
           <Text style={theme.typography.heading2}>{t("settings.availableTimes")}</Text>
-          <Pressable onPress={() => setNewTimeSlotModalVisible(true)}>
+          <Pressable onPress={() => setNewTimeSlotModalVisible(!newTimeSlotModalVisible)}>
             <uiIcon.PlusIcon size={30} color={theme.colors.primary} />
           </Pressable>
         </View>

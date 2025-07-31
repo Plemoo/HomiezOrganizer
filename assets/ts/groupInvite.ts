@@ -1,5 +1,4 @@
 import { serverTimestamp } from '@react-native-firebase/firestore'
-import * as Linking from 'expo-linking'
 import { IDbInvitation } from '../interfaces/InviteInterface'
 import { IJoinLinkSearchParams } from '../interfaces/JoinInterface'
 import { FirebaseExchange } from './firebaseExchange'
@@ -15,9 +14,10 @@ export const createInviteLink = (groupId: string): Promise<string> => {
                 groupId,
                 inviteCode: docId.id
             }
-            return Linking.createURL("Join", {
-                queryParams: params as Linking.QueryParams
-            })
+            return `https://homiesorganizer.web.app/Join?groupId=${params.groupId}&inviteCode=${params.inviteCode}`;
+            // return Linking.createURL("Join", {
+            //     queryParams: params as Linking.QueryParams
+            // })
         })
 
 }

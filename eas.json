@@ -1,7 +1,6 @@
 {
     "cli": {
         "version": ">= 3.19.0",
-        // Auto increments the version number for production builds
         "appVersionSource": "remote"
     },
     "build": {

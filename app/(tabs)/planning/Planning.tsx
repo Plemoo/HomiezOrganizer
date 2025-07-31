@@ -291,7 +291,7 @@ const Planning = () => {
           <View style={{ marginBottom: theme.spacing.large }}>
             <View style={theme.containers.headingWithIconContainer}>
               <Text style={theme.typography.heading2}>{t("settings.availableTimes")}</Text>
-              <uiIcon.PlusIcon size={30} color={theme.colors.primary} onPress={() => setTimeSlotModalVisible(true)} />
+              <uiIcon.PlusIcon size={30} color={theme.colors.primary} onPress={() => setTimeSlotModalVisible(!timeSlotModalVisible)} />
             </View>
             <FlatList
               scrollEnabled={false}

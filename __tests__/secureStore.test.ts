@@ -16,9 +16,9 @@ describe("overwriteSecureStoreTestable: SecureStore Overwrites", () => {
         beforeEach(() => {
             jest.clearAllMocks();
         });
-    afterEach(() => {
-        jest.restoreAllMocks();
-    });        
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
         test("Username valid string", async () => {
             await SecureStorageHandlerTestable.overwriteSecureStoreTestable("username", "anyString");
             expect(SecureStore.setItemAsync).toHaveBeenCalledWith("username", "anyString");
@@ -197,7 +197,7 @@ describe("getUserStoredInSecureStore: SecureStore Enty fetching", () => {
     });
     afterEach(() => {
         jest.restoreAllMocks();
-    });    
+    });
     test("Ensure all key iteration", async () => {
         (SecureStore.getItemAsync as jest.Mock)//
             .mockResolvedValue(null) // default case
@@ -331,7 +331,8 @@ describe("updateSecureStore", () => {
         username: "anyUsernameString",
         groupUuids: ["groupId"],
         icon: "anyIconString",
-        language: "en"
+        language: "en",
+        appearance: "light"
     }
 
     beforeEach(() => {
@@ -346,13 +347,14 @@ describe("updateSecureStore", () => {
             username: "anyUsernameString",
             groupUuids: ["groupId"],
             icon: "anyIconString",
-            language: "en"
+            language: "en",
+            appearance: "light"
         }
         jest.spyOn(SecureStorageHandler, "getUserStoredInSecureStore")//
             .mockResolvedValueOnce(userInSecureStore);
         expect(SecureStorageHandler.updateSecureStore(newUser)).resolves.toMatchObject([])
     })
-        test("Update every key", async () => {
+    test("Update every key", async () => {
         let newUser: ILocalUser = {
             id: "new",
             busy: JSON.parse(JSON.stringify(newTimes)),
@@ -361,25 +363,27 @@ describe("updateSecureStore", () => {
             username: "newUsername",
             groupUuids: ["newGroupId"],
             icon: "newIcon",
-            language: "de"
+            language: "de",
+            appearance: "light"
         }
         jest.spyOn(SecureStorageHandler, "getUserStoredInSecureStore")//
             .mockResolvedValueOnce(userInSecureStore);
-        expect(SecureStorageHandler.updateSecureStore(newUser)).resolves.toMatchObject(["id","busy","birthday","available","username","groupUuids","icon","language"])
+        expect(SecureStorageHandler.updateSecureStore(newUser)).resolves.toMatchObject(["id", "busy", "birthday", "available", "username", "groupUuids", "icon", "language"])
     })
-        test("Update: Add arrayEntries every key", async () => {
+    test("Update: Add arrayEntries every key", async () => {
         let newUser: ILocalUser = {
             id: "anyUuidString",
             busy: JSON.parse(JSON.stringify(times.concat(newTimes))),
             available: JSON.parse(JSON.stringify(times.concat(newTimes))),
-            groupUuids: ["newGroupId","newGroupId"],
+            groupUuids: ["newGroupId", "newGroupId"],
             icon: "anyIconString",
-            language: "en"
+            language: "en",
+            appearance: "light"
         }
         jest.spyOn(SecureStorageHandler, "getUserStoredInSecureStore")//
             .mockResolvedValueOnce(userInSecureStore);
-        expect(SecureStorageHandler.updateSecureStore(newUser)).resolves.toMatchObject(["busy","available","groupUuids"])
-    })    
+        expect(SecureStorageHandler.updateSecureStore(newUser)).resolves.toMatchObject(["busy", "available", "groupUuids"])
+    })
     afterEach(() => {
         jest.restoreAllMocks();
     });

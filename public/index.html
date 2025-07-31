@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Startseite</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <script>
+    // Wenn die Seite geladen wird:
+    document.addEventListener("DOMContentLoaded", () => {
+      // 1. Querystring holen:
+      const params = window.location.search; // z.B. "?groupId=...&inviteCode=..."
+      // 2. Custom-Scheme URL bauen:
+      const appUrl = `homiesorganizer://Join${params}`;
+      // 3. Versuchen, die App zu öffnen:
+      window.location.href = appUrl;
+      console.log("Versuche, die App zu öffnen:", appUrl);
+    });
+  </script>
+    <style>
+      body {
+        background: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      .circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #007aff;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="circle"></div>
+  </body>
+</html>

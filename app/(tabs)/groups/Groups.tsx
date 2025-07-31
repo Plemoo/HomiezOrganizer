@@ -48,7 +48,7 @@ const Groups = () => {
     return () => {
       unsubRef();
     }
-  }, [userLoading, user?.id]);
+  }, [userLoading,user, user?.id]);
 
   useEffect(() => {
     if (Array.isArray(groupArray)) {

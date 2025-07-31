@@ -25,12 +25,6 @@ export const getAllActivitiesByGroupIds = (groupIds: string[]): Promise<{ group:
         })
 }
 
-// export const getCombinedArrayWithUniqueActivities = (activities1: IActivityWithGroupIcon[] | IActivity[], activities2: IActivityWithGroupIcon[] | IActivity[]): IActivityWithGroupIcon[] | IActivity[] => {
-//     const existingIds = new Set(activities1.map(activity => activity.id));
-//     const newActivities = activities2.filter(activity => !existingIds.has(activity.id));
-//     return [...activities1, ...newActivities];
-// };
-
 
 export const sortActivitiesByDueDate = (activity1: IActivity, activity2: IActivity): number => {
     const activity1Time = activity1.time ? new Date(activity1.time.start).getTime() : null;

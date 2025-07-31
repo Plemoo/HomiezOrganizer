@@ -8,21 +8,23 @@ import { useAlert } from '@/components/AlertContext'
 import LoadingDots from '@/components/Loading'
 import { useUser } from '@/components/ProfileInformationContext'
 import { UnknownInputParams, useLocalSearchParams, useRouter } from 'expo-router'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export default function JoinPage() {
     const { groupId, inviteCode }: IJoinLinkSearchParams = useLocalSearchParams()
     const router = useRouter()
-    const [loading, setLoading] = useState(true)
     const { user, userLoading } = useUser();
     const { showAlert } = useAlert();
     const { t } = useTranslation();
 
     useEffect(() => {
-        if (userLoading) return // wait for user to be loaded
+        if (userLoading || !user) {
+            return; // wait for user to be loaded
+        }
         if (!groupId || !inviteCode || !user || !user.id) {
-            router.replace('..')
+            console.error("Invalid parameters for joining group:", { groupId, inviteCode, user });
+            router.replace('/(tabs)/activities/Activities')
             return
         }
         FirebaseExchange.getFirebaseDocument(inviteCode, "Group", groupId, "Invitation")
@@ -42,7 +44,9 @@ export default function JoinPage() {
                     groupIdParameter: groupId
                 }
                 // success → navigate into the group screen
-                router.replace({ pathname: '/(tabs)/groups/GroupDetail', params: searchParams as UnknownInputParams })
+                setTimeout(() => {
+                    router.replace({ pathname: '/(tabs)/groups/GroupDetail', params: searchParams as UnknownInputParams })
+                }, 2000) // wait 2 seconds to make sure the enty is added to the database
             })
             .catch((err: any) => {
                 if (err.message === "Invite has expired") {
@@ -52,10 +56,9 @@ export default function JoinPage() {
                     })
                 }
                 console.error("Error redeeming invite:", err);
-                router.replace('..')
+                router.replace('/(tabs)/activities/Activities')
             })
-            .finally(() => setLoading(false))
-    }, [groupId, inviteCode, userLoading]);
+    }, [groupId, inviteCode, userLoading, user]);
 
 
     const redeemInvite = async (groupId: string, userId: string) => {
@@ -66,12 +69,14 @@ export default function JoinPage() {
         }
         const userGroupId: keyof ILocalUser = "groupUuids";
         const groupMemberIds: keyof IGroup = "memberUuids";
-        // no await, to throw exceptions in the catch block of the redeemInvite function
-        FirebaseExchange.addFirestoreValueToArray(userId, "User", userGroupId, groupId)
-        FirebaseExchange.addFirestoreValueToArray(groupId, "Group", groupMemberIds, userId)
+        return FirebaseExchange.addFirestoreValueToArray(groupId, "Group", groupMemberIds, userId)
+        .then(() => {
+            return FirebaseExchange.addFirestoreValueToArray(userId, "User", userGroupId, groupId)
+        }).catch((err: any) => {
+            console.error("Error adding user to group:", err);
+            throw new Error("Failed to add user to group");
+        })
     }
 
-    if (loading) return <LoadingDots visible />
-
-    return null
+    return <LoadingDots visible />
 }

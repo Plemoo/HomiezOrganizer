@@ -20,7 +20,7 @@ service cloud.firestore {
     	// Nur registrierte User dürfen neue Dokumente anlegen
       allow create: if isAuthenticatedUser();
       // Update für Gruppen, nur für das memberUuids Feld
-      allow update: if isAuthenticatedUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUuids']);
+      allow update: if isAuthenticatedUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUuids','updatedAt']);
       // Zugriff nur auf Gruppen wovon man bereits Member ist
       allow read, delete: if request.auth.uid in resource.data.memberUuids;
       match /Invitation/{invitaitonId} {

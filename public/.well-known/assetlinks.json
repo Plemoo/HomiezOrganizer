@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.homiesOrganizer",
+      "sha256_cert_fingerprints":
+        ["D5:B0:B4:D8:4E:4F:C0:3D:35:1B:83:56:65:30:88:0B:48:4C:8B:F4:1D:6B:06:23:61:E7:8B:40:08:3B:25:99",
+      "7F:4E:B1:7B:AD:2C:2A:5E:A8:55:AF:26:E1:6B:28:63:34:11:9A:96:0B:D9:1E:6C:27:AF:89:79:06:24:AC:DB"]
+    }
+  }
+]

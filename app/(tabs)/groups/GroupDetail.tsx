@@ -43,12 +43,13 @@ const GroupDetail = () => {
   useEffect(() => {
     if (!groupIdParameter) {  // Force go back when groupObjectString is not correct
       router.replace('/(tabs)/groups/Groups')
+      return;
     }
+    console.log("GroupDetail useEffect", groupIdParameter);
     FirebaseExchange.getFirebaseDocument(groupIdParameter!, "Group")
       .then((groupDoc) => {
         const group = parseFirebaseGroup(groupDoc);
         if (group === null) {
-          router.replace('/(tabs)/groups/Groups');
           throw new Error("GroupdocError");
         } else {
           return group;
@@ -79,7 +80,10 @@ const GroupDetail = () => {
           setStateForEndedActivitesToClosed(allActivitiesOfGroup)
         }
       })
-      .catch((err) => console.error("Error during Group Detail firebase loading", err))
+      .catch((err) =>{
+        router.replace('/(tabs)/groups/Groups')
+        console.error("Error during Group Detail firebase loading", err)
+      })
       .finally(() => setLoading(false))
   }, [groupIdParameter, isFocused]);
 
@@ -129,7 +133,6 @@ const GroupDetail = () => {
   if (loading) return <LoadingDots visible />;
 
   return (
-
     <ScrollView showsVerticalScrollIndicator={false} style={theme.containers.rootContainer}>
       {hintMessage && (
         <Hint
