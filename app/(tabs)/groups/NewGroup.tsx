@@ -1,7 +1,6 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IDbGroup } from '@/assets/interfaces/GroupInterface';
-import { ILocalUser } from '@/assets/interfaces/ProfileInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import GoBack from '@/components/GoBack';
 import { useUser } from '@/components/ProfileInformationContext';
@@ -35,15 +34,12 @@ const NewGroup = () => {
       name: groupName,
       description: groupDescription,
       memberUuids: [user.id],
+      ownerUuid: user.id,
       icon: groupIcon
     }
-    FirebaseExchange.addDocumentToCollection('Group', newGroup)
-      .then((groupRef) => {
-        let userGroupIdsKey: keyof ILocalUser = "groupUuids";
-        FirebaseExchange.addFirestoreValueToArray(user.id, "User", userGroupIdsKey, groupRef.id)
-      })
+    FirebaseExchange.createGroup(newGroup)
+      .then(() => router.replace("/(tabs)/groups/Groups"))
       .catch((err) => console.error("Error creating new group:", err));
-    router.replace("/(tabs)/groups/Groups");
   }
 
   return (

@@ -13,7 +13,7 @@ import DeviceInfo from 'react-native-device-info';
 // 1) Grab the default instances
 export const authInst = getAuth()
 export const firestoreInst = getFirestore()
-export const firestoreCloudFunctions = getFunctions()
+export const firestoreCloudFunctions = getFunctions(undefined, "europe-west3")
 
 
 if (__DEV__) {

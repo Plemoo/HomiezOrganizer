@@ -85,12 +85,9 @@ const Groups = () => {
       console.error("No UserID in leaveGroup function");
       return;
     }
-    let memberUuidKeyOfGroup: keyof IGroup = "memberUuids";
-    let groupUuidKeyOfUser: keyof ILocalUser = "groupUuids";
-    FirebaseExchange.removeFirestoreValueFromArray(groupId, "Group", memberUuidKeyOfGroup, user.id)
+    FirebaseExchange.leaveGroup(groupId)
       .then(() => {
         user.groupUuids = user.groupUuids?.filter((id) => id !== groupId);
-        return FirebaseExchange.removeFirestoreValueFromArray(user.id, "User", groupUuidKeyOfUser, groupId);
       })
       .catch((err) => {
         console.error("Error leaving Group: ", err);
@@ -128,15 +125,17 @@ const Groups = () => {
                 </View>
               </View>
               <View style={{ flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
-                <Pressable style={{ justifyContent: "center" }} onPress={() => showAlert({
-                  title: t("groups.leaveGroupDialog.title"),
-                  message: t("groups.leaveGroupDialog.leaveGroupText"),
-                  cancelText: t("groups.leaveGroupDialog.cancel"),
-                  confirmText: t("groups.leaveGroupDialog.yesIamSure"),
-                  onConfirm: () => leaveGroup(item.id),
-                })}>
-                  <uiIcons.RemoveUser size={30} color={theme.colors.primary} />
-                </Pressable>
+                {(item.ownerUuid ?? item.memberUuids[0]) !== user?.id && (
+                  <Pressable style={{ justifyContent: "center" }} onPress={() => showAlert({
+                    title: t("groups.leaveGroupDialog.title"),
+                    message: t("groups.leaveGroupDialog.leaveGroupText"),
+                    cancelText: t("groups.leaveGroupDialog.cancel"),
+                    confirmText: t("groups.leaveGroupDialog.yesIamSure"),
+                    onConfirm: () => leaveGroup(item.id),
+                  })}>
+                    <uiIcons.RemoveUser size={30} color={theme.colors.primary} />
+                  </Pressable>
+                )}
               </View>
               <View style={{ justifyContent: "center", flex: 1, alignItems: "center" }}>
                 <uiIcons.RightPointerIcon size={40} color={theme.colors.primary} />

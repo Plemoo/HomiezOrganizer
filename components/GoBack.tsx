@@ -8,20 +8,9 @@ const GoBack: React.FC<{ backTarget?: Href }> = ({ backTarget }) => {
     const { theme } = useCustomTheme();
     const router = useRouter();
     const uiIcons = useUiIcons();
-    // Define the possible segment patterns based on your routing structure
-    type AppSegments =
-        | ['Join']
-        | ['(tabs)', 'activities', 'Activities']
-        | ['(tabs)', 'activities', 'ActivityDetail']
-        | ['(tabs)', 'activities', 'ScheduledActivity']
-        | ['(tabs)', 'groups', 'GroupDetail']
-        | ['(tabs)', 'groups', 'Groups']
-        | ['(tabs)', 'planning', 'Planning']
-        | ['(tabs)', 'settings', 'Settings']
-
-    // Add more as your routes grow
-
-    const [firstSegment, secondSegment, thirdSegment] = useSegments<AppSegments>();
+    const segments: readonly string[] = useSegments();
+    const firstSegment = segments[0];
+    const secondSegment = segments[1];
     const executeNavigation = () => {
         if (backTarget) {
             router.push(backTarget);

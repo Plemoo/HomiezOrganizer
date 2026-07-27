@@ -1,70 +1,58 @@
-// app.config.js
 const { withPlugins, withAndroidManifest } = require('@expo/config-plugins');
-// Deine bestehende app.json importieren
-const baseConfig = require('./app.json');
+
+const hostingDomain = 'homiesorganizer.web.app';
 
 function withAndroidQueries(config) {
   return withAndroidManifest(config, config => {
-    console.log(config.modResults)
     const manifest = config.modResults.manifest;
-    // Stelle sicher, dass manifest.queries existiert
-    console.log(manifest.queries[0].intent.data);
-    if (!manifest.queries) {
-        manifest.queries = [{ intent: [] }];
-        manifest.queries[0].intent.push({
-          action: 'android.intent.action.VIEW',
-          category: ['android.intent.category.BROWSABLE'],
-          data: {
-            scheme: 'https',
-            host: 'homiesorganizer.web.app',
-          },
-        });
+    manifest.queries ??= [];
+    manifest.queries[0] ??= { intent: [] };
+    manifest.queries[0].intent ??= [];
+
+    const browserIntent = {
+      action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+      category: [{ $: { 'android:name': 'android.intent.category.BROWSABLE' } }],
+      data: [{
+        $: {
+          'android:scheme': 'https',
+          'android:host': hostingDomain,
+        },
+      }],
+    };
+    const existingBrowserIntentIndex = manifest.queries[0].intent.findIndex(intent =>
+      intent.action?.some(action => action.$?.['android:name'] === 'android.intent.action.VIEW')
+    );
+    if (existingBrowserIntentIndex >= 0) {
+      manifest.queries[0].intent[existingBrowserIntentIndex] = browserIntent;
+    } else {
+      manifest.queries[0].intent.push(browserIntent);
     }
-    if(manifest.queries[0].intent){
-        console.log('Intent already exists',manifest.queries[0].intent[0].data);
-        manifest.queries[0].intent[0].data=[{"$":{
-            "android:scheme": ['https'],
-            "android:host": ['homiesorganizer.web.app'],
-          }}];
-    }
-    // Füge den VIEW-Intent für deine HTTPS-Domain hinzu
+
     return config;
   });
 }
 
-// Merge baseConfig mit den Ergänzungen
-module.exports = withPlugins(
+module.exports = ({ config }) => withPlugins(
   {
-    expo: {
-      ...baseConfig.expo,
-      android: {
-        ...baseConfig.expo.android,
-        // Ergänze einen neuen Intent-Filter mit autoVerify
-        intentFilters: [
-          // deine existierenden Intent-Filters
-          ...(baseConfig.expo.android.intentFilters || []),
-          // neuer Universal Link Intent-Filter
-          {
-            action: 'VIEW',
-            autoVerify: true,
-            category: ['BROWSABLE', 'DEFAULT'],
-            data: {
-              scheme: 'https',
-              host: 'homiesorganizer.web.app',
-              pathPrefix: '/',
-            },
+    ...config,
+    android: {
+      ...config.android,
+      intentFilters: [
+        ...(config.android?.intentFilters || []),
+        {
+          action: 'VIEW',
+          autoVerify: true,
+          category: ['BROWSABLE', 'DEFAULT'],
+          data: {
+            scheme: 'https',
+            host: hostingDomain,
+            pathPrefix: '/',
           },
-        ],
-      },
-      plugins: [
-        // alle deine Plugins aus app.json
-        ...(baseConfig.expo.plugins || []),
-        // unser Manifest-Plugin für <queries>
-        withAndroidQueries,
+        },
       ],
     },
   },
-    [
-        // Hier kannst du weitere Plugins hinzufügen, falls nötig
-    ]
+  [
+    withAndroidQueries,
+  ]
 );

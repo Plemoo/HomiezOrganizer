@@ -52,7 +52,9 @@ export const DbGroupSchema = z.object({
     icon: z.string(),
     name: z.string(),
     description: z.string(),
-    memberUuids: z.array(z.string())
+    memberUuids: z.array(z.string()),
+    // Groups created before ownership was introduced use their first member.
+    ownerUuid: z.string().optional()
 })
 
 export const GroupSchema = DbGroupSchema.extend({

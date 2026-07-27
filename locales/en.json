@@ -17,6 +17,16 @@
     "groupLinkShareError": " The group link could not be copied to the clipboard. Please close the app and try again.",
     "groupLinkShareSuccess": " The group link has been copied to the clipboard. Share it with your friends to let them join your group.",
     "shareGroupLink": "Share \n Group \n Link",
+    "unnamedMember": "Unnamed member",
+    "removeMemberAction": "Remove {{name}}",
+    "removeMemberSuccess": "{{name}} was removed from the group.",
+    "removeMemberError": "The member could not be removed from the group. Please try again.",
+    "removeMemberDialog": {
+      "title": "Remove member?",
+      "message": "Do you really want to remove {{name}} from the group?",
+      "cancel": "Cancel",
+      "confirm": "Remove"
+    },
     "leaveGroupDialog": {
       "title": "Leave Group",
       "cancel": "Cancel",

@@ -1,16 +1,45 @@
 
 import { onAuthStateChanged, signInAnonymously } from '@react-native-firebase/auth';
 import { addDoc, arrayRemove, arrayUnion, collection, doc, FirebaseFirestoreTypes, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from '@react-native-firebase/firestore';
+import { httpsCallable } from '@react-native-firebase/functions';
 import { IActivity, IDbActivity } from "../interfaces/ActivityInterface";
 import { IDbComment } from "../interfaces/CommentInterface";
 import { TAvailableFirebaseCollections, TAvailableFirebaseSubCollections, TAvailableFirebaseSubSubCollections } from "../interfaces/FirebaseInterface";
 import { IDbGroup, IGroup } from "../interfaces/GroupInterface";
 import { IDbInvitation } from "../interfaces/InviteInterface";
 import { IBusyAvailableTimes, IDbUser, ILocalUser } from "../interfaces/ProfileInterface";
-import { authInst, firestoreInst } from './firebaseConfig';
+import { authInst, firestoreCloudFunctions, firestoreInst } from './firebaseConfig';
 
 
 export class FirebaseExchange {
+  static createGroup(group: IDbGroup) {
+    return httpsCallable<IDbGroup, { groupId: string }>(
+      firestoreCloudFunctions,
+      "createGroup"
+    )(group);
+  }
+
+  static redeemGroupInvite(groupId: string, inviteCode: string) {
+    return httpsCallable<{ groupId: string; inviteCode: string }, { groupId: string }>(
+      firestoreCloudFunctions,
+      "redeemGroupInvite"
+    )({ groupId, inviteCode });
+  }
+
+  static removeGroupMember(groupId: string, memberUuid: string) {
+    return httpsCallable<{ groupId: string; memberUuid: string }, { groupId: string; memberUuid: string }>(
+      firestoreCloudFunctions,
+      "removeGroupMember"
+    )({ groupId, memberUuid });
+  }
+
+  static leaveGroup(groupId: string) {
+    return httpsCallable<{ groupId: string }, { groupId: string }>(
+      firestoreCloudFunctions,
+      "leaveGroup"
+    )({ groupId });
+  }
+
   /**
    * CARE: ADDS WITH FIREBASE GENERATED ID. Adds a new document to a Firestore collection.
    * @param collectionName The name of the collection to add the document to.

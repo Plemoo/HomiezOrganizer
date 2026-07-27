@@ -5,10 +5,6 @@ service cloud.firestore {
     function isAuthenticatedUser() {
       return exists(/databases/$(database)/documents/User/$(request.auth.uid));
     }
-    match /{parentPath=**}/Activity/{actId} {
-      allow list: if isAuthenticatedUser();
-    }
- 
     match /Group/{groupId} {
     function parentAllowsUser() {
       // Get the parent document
@@ -17,23 +13,27 @@ service cloud.firestore {
       return exists(parent)
         && request.auth.uid in get(parent).data.memberUuids;
     }         
-    	// Nur registrierte User dürfen neue Dokumente anlegen
-      allow create: if isAuthenticatedUser();
-      // Update für Gruppen, nur für das memberUuids Feld
-      allow update: if isAuthenticatedUser() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUuids','updatedAt']);
-      // Zugriff nur auf Gruppen wovon man bereits Member ist
-      allow read, delete: if request.auth.uid in resource.data.memberUuids;
+      // Group creation and membership changes are validated by Cloud Functions.
+      allow create: if false;
+      allow update: if false;
+      // Members may read; only the owner may delete the complete group.
+      allow read: if request.auth.uid in resource.data.memberUuids;
+      allow delete: if request.auth.uid == resource.data.get('ownerUuid', resource.data.memberUuids[0]);
       match /Invitation/{invitaitonId} {
         // only members can create invites
         allow create: if request.auth.uid in 
           get(/databases/$(database)/documents/Group/$(groupId)).data.memberUuids;
-        // anyone (even unauthenticated) can read an invite to redeem
-        allow read: if true;
+        // Invite redemption is validated by the callable Cloud Function.
+        allow read: if false;
         // only your client‐run transaction can increment uses
         allow update: if false;
       }
       match /Activity/{activityId}{
-        allow read, write: if isAuthenticatedUser() && parentAllowsUser();
+        allow read: if isAuthenticatedUser() && parentAllowsUser();
+        allow create, update: if isAuthenticatedUser()
+          && parentAllowsUser()
+          && request.resource.data.owningGroupId == groupId;
+        allow delete: if isAuthenticatedUser() && parentAllowsUser();
         match /Comment/{commentId}{
           allow create, read, delete: if isAuthenticatedUser() && parentAllowsUser();
         }
@@ -41,12 +41,23 @@ service cloud.firestore {
     }
     // Zugriff auf eigene User-Daten
     match /User/{uid} {
-      allow write: if isAuthenticatedUser() && request.auth.uid == uid;
-      allow read: if isAuthenticatedUser();     
+      allow update: if isAuthenticatedUser()
+        && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'groupUuids']);
+      allow delete: if isAuthenticatedUser() && request.auth.uid == uid;
+      allow read: if isAuthenticatedUser()
+        && (
+          request.auth.uid == uid
+          || resource.data.get('groupUuids', []).toSet().intersection(
+            get(/databases/$(database)/documents/User/$(request.auth.uid)).data.get('groupUuids', []).toSet()
+          ).size() > 0
+        );
     }
     // Alle dürfen neue User erstellen
     match /User/{uid} {
-  		allow create: if request.auth != null && request.resource.data.id == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.id == request.auth.uid
+        && request.resource.data.get('groupUuids', []).size() == 0;
     }
   }
 }

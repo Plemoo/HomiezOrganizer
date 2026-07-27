@@ -1,5 +1,5 @@
 {
-  "name": "homiezorganizer",
+  "name": "aktivitaeten-finder",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "lint": "expo lint",
     "test": "jest",
+    "test:rules": "jest __tests__/firestore.rules.test.ts --runInBand",
     "pixel8": "expo run:android --device Pixel_8_API_35",
     "pixel9": "expo run:android --device Pixel_9",
     "anyDevice": "expo run:android --device",
@@ -78,12 +79,13 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@expo/config-plugins": "^10.1.2",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@types/lodash": "^4.17.17",
     "@types/react": "~19.0.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~9.2.0",
     "expo-dev-client": "~5.2.4",
-    "firebase-tools": "^14.7.0",
+    "firebase-tools": "^15.24.0",
     "typescript": "~5.8.3",
     "zod-to-ts": "^1.2.0"
   },

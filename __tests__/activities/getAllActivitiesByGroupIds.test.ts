@@ -17,12 +17,16 @@ jest.mock('@react-native-firebase/app', () => {
 // Mock @react-native-firebase/auth
 jest.mock('@react-native-firebase/auth', () => ({
   // exportiere genau die Funktionen, die Du nutzt
+  getAuth: jest.fn(() => ({})),
+  connectAuthEmulator: jest.fn(),
   onAuthStateChanged: jest.fn(() => () => {}),
   signInAnonymously: jest.fn(() => Promise.resolve({ user: { uid: 'test' } })),
 }));
 
 // Mock @react-native-firebase/firestore
 jest.mock('@react-native-firebase/firestore', () => ({
+  getFirestore: jest.fn(() => ({})),
+  connectFirestoreEmulator: jest.fn(),
   collection: jest.fn(),
   doc: jest.fn(),
   getDocs: jest.fn(),
@@ -33,13 +37,18 @@ jest.mock('@react-native-firebase/firestore', () => ({
   arrayUnion: jest.fn(),
   arrayRemove: jest.fn(),
   serverTimestamp: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
 }));
 
 jest.mock("@react-native-firebase/functions", () => ({
+  getFunctions: jest.fn(() => ({})),
+  connectFunctionsEmulator: jest.fn(),
   httpsCallable: jest.fn(() => jest.fn(() => Promise.resolve({ data: {} }))),
 }));
 
 jest.mock("react-native-device-info", () => ({
+    isEmulatorSync: jest.fn(() => true),
     getUniqueId: jest.fn(() => "mocked-device-id"),
     getSystemName: jest.fn(() => "mocked-system-name"),
     getVersion: jest.fn(() => "mocked-version"),

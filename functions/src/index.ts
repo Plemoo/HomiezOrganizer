@@ -1,6 +1,7 @@
 import { Expo, ExpoPushMessage } from 'expo-server-sdk'
 import * as admin from 'firebase-admin'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
+import { HttpsError, onCall } from 'firebase-functions/v2/https'
 admin.initializeApp()
 const expo = new Expo()
 
@@ -13,6 +14,7 @@ const groupIdString = "{groupId}";
 const activityIdString = "{activityId}";
 const commentIdString = "{commentId}";
 const bodyCharacterLimit = 150; // Limit for the body of the notification
+const inviteValidityMs = 10 * 24 * 60 * 60 * 1000;
 // const invitationIdString = "{invitationId}";
 
 
@@ -22,6 +24,182 @@ const bodyCharacterLimit = 150; // Limit for the body of the notification
 // - Benachrichtigung wenn neuer Zeitslot hinzugefügt wird
 
 
+
+export const createGroup = onCall(
+    {region: "europe-west3"},
+    async request => {
+        const userId = request.auth?.uid;
+        const name = request.data?.name;
+        const description = request.data?.description;
+        const icon = request.data?.icon;
+        if (!userId) throw new HttpsError("unauthenticated", "Authentication is required.");
+        if (typeof name !== "string" || !name.trim() || name.length > 100) {
+            throw new HttpsError("invalid-argument", "A group name between 1 and 100 characters is required.");
+        }
+        if (typeof description !== "string" || description.length > 1000 || typeof icon !== "string") {
+            throw new HttpsError("invalid-argument", "The group data is invalid.");
+        }
+
+        const db = admin.firestore();
+        const groupRef = db.collection(groupCollectionString).doc();
+        const userRef = db.doc(`${userCollectionString}/${userId}`);
+
+        await db.runTransaction(async transaction => {
+            const userSnap = await transaction.get(userRef);
+            if (!userSnap.exists) throw new HttpsError("failed-precondition", "The user profile does not exist.");
+
+            transaction.create(groupRef, {
+                name: name.trim(),
+                description,
+                icon,
+                memberUuids: [userId],
+                ownerUuid: userId,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            transaction.update(userRef, {
+                groupUuids: admin.firestore.FieldValue.arrayUnion(groupRef.id),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        });
+
+        return {groupId: groupRef.id};
+    }
+);
+
+export const redeemGroupInvite = onCall(
+    {region: "europe-west3"},
+    async request => {
+        const userId = request.auth?.uid;
+        const groupId = request.data?.groupId;
+        const inviteCode = request.data?.inviteCode;
+        if (!userId) throw new HttpsError("unauthenticated", "Authentication is required.");
+        if (typeof groupId !== "string" || typeof inviteCode !== "string") {
+            throw new HttpsError("invalid-argument", "A group ID and invite code are required.");
+        }
+
+        const db = admin.firestore();
+        const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
+        const inviteRef = groupRef.collection("Invitation").doc(inviteCode);
+        const userRef = db.doc(`${userCollectionString}/${userId}`);
+
+        await db.runTransaction(async transaction => {
+            const [groupSnap, inviteSnap, userSnap] = await transaction.getAll(groupRef, inviteRef, userRef);
+            if (!groupSnap.exists || !inviteSnap.exists) {
+                throw new HttpsError("not-found", "The invitation does not exist.");
+            }
+            if (!userSnap.exists) throw new HttpsError("failed-precondition", "The user profile does not exist.");
+
+            const invite = inviteSnap.data();
+            const createdAt = invite?.createdAt?.toDate?.();
+            if (invite?.groupId !== groupId || !(createdAt instanceof Date) || Date.now() - createdAt.getTime() > inviteValidityMs) {
+                throw new HttpsError("failed-precondition", "The invitation is invalid or expired.");
+            }
+
+            transaction.update(groupRef, {
+                memberUuids: admin.firestore.FieldValue.arrayUnion(userId),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            transaction.update(userRef, {
+                groupUuids: admin.firestore.FieldValue.arrayUnion(groupId),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        });
+
+        return {groupId};
+    }
+);
+
+export const removeGroupMember = onCall(
+    {region: "europe-west3"},
+    async request => {
+        const requestingUserId = request.auth?.uid;
+        const groupId = request.data?.groupId;
+        const memberUuid = request.data?.memberUuid;
+        if (!requestingUserId) throw new HttpsError("unauthenticated", "Authentication is required.");
+        if (typeof groupId !== "string" || typeof memberUuid !== "string") {
+            throw new HttpsError("invalid-argument", "A group ID and member ID are required.");
+        }
+        if (requestingUserId === memberUuid) {
+            throw new HttpsError("failed-precondition", "The group owner cannot remove themselves.");
+        }
+
+        const db = admin.firestore();
+        const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
+        const memberRef = db.doc(`${userCollectionString}/${memberUuid}`);
+
+        await db.runTransaction(async transaction => {
+            const [groupSnap, memberSnap] = await transaction.getAll(groupRef, memberRef);
+            if (!groupSnap.exists) throw new HttpsError("not-found", "The group does not exist.");
+
+            const group = groupSnap.data();
+            const members = Array.isArray(group?.memberUuids) ? group.memberUuids : [];
+            const ownerUuid = group?.ownerUuid || members[0];
+            if (ownerUuid !== requestingUserId) {
+                throw new HttpsError("permission-denied", "Only the group owner may remove members.");
+            }
+            if (!members.includes(memberUuid)) {
+                throw new HttpsError("failed-precondition", "The user is not a member of this group.");
+            }
+
+            transaction.update(groupRef, {
+                memberUuids: admin.firestore.FieldValue.arrayRemove(memberUuid),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            if (memberSnap.exists) {
+                transaction.update(memberRef, {
+                    groupUuids: admin.firestore.FieldValue.arrayRemove(groupId),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        });
+
+        return {groupId, memberUuid};
+    }
+);
+
+export const leaveGroup = onCall(
+    {region: "europe-west3"},
+    async request => {
+        const userId = request.auth?.uid;
+        const groupId = request.data?.groupId;
+        if (!userId) throw new HttpsError("unauthenticated", "Authentication is required.");
+        if (typeof groupId !== "string") {
+            throw new HttpsError("invalid-argument", "A group ID is required.");
+        }
+
+        const db = admin.firestore();
+        const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
+        const userRef = db.doc(`${userCollectionString}/${userId}`);
+
+        await db.runTransaction(async transaction => {
+            const [groupSnap, userSnap] = await transaction.getAll(groupRef, userRef);
+            if (!groupSnap.exists) throw new HttpsError("not-found", "The group does not exist.");
+
+            const group = groupSnap.data();
+            const members = Array.isArray(group?.memberUuids) ? group.memberUuids : [];
+            const ownerUuid = group?.ownerUuid || members[0];
+            if (!members.includes(userId)) {
+                throw new HttpsError("failed-precondition", "The user is not a member of this group.");
+            }
+            if (ownerUuid === userId) {
+                throw new HttpsError("failed-precondition", "The group owner cannot leave the group.");
+            }
+
+            transaction.update(groupRef, {
+                memberUuids: admin.firestore.FieldValue.arrayRemove(userId),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            if (userSnap.exists) {
+                transaction.update(userRef, {
+                    groupUuids: admin.firestore.FieldValue.arrayRemove(groupId),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        });
+
+        return {groupId};
+    }
+);
 
 /**
  * Send notification if activity is scheduled or closed OR if timeslot changed
@@ -159,9 +337,10 @@ export const sendNewCommentForActivityNotification = onDocumentCreated(
                 if (!user.id || !comment.userUuid || user.id === comment.userUuid) continue; // Do not send notification to the user who wrote the comment
                 const language = user.language || "en"; // Default to English if no language is set
                 let notificationTitle = language === "de" ? "Neues Kommentar" : "New comment";
-                if (activitySnap && activitySnap.exists && activitySnap.data()?.name) {
-                    if (activitySnap.data()?.declinedUserUuids && activitySnap.data()?.declinedUserUuids.includes(user.id)) continue; // Do not send notification to users who declined the activity
-                    notificationTitle += " in " + activitySnap.data()!.name;
+                const activity = activitySnap?.data();
+                if (activitySnap?.exists && activity?.name) {
+                    if (activity.declinedUserUuids?.includes(user.id)) continue;
+                    notificationTitle += " in " + activity.name;
                 }
                 let notificationBody = comment.userName + ": " + (comment.text.length > bodyCharacterLimit ? comment.text.substring(0, bodyCharacterLimit) + "..." : comment.text);
                 const notification = createNotification(user.expoPushToken, notificationTitle, notificationBody, "newComment", groupIdPara, activityIdPara);

@@ -1,13 +1,24 @@
 import useAvatarIcons from '@/assets/hooks/iconGatheringHook'
+import useUiIcons from '@/assets/hooks/uiIconHook'
 import { ILocalUser } from '@/assets/interfaces/ProfileInterface'
 import { Image } from 'expo-image'
 import React, { JSX } from 'react'
-import { FlatList, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { FlatList, Pressable, Text, View } from 'react-native'
 import { useCustomTheme } from './ThemeContext'
 
-const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], showNamesOrIcons: "names" | "icons" }): JSX.Element | null => {
+type Props = {
+    users: ILocalUser[];
+    showNamesOrIcons: "names" | "icons";
+    onRemoveUser?: (user: ILocalUser) => void;
+    canRemoveUser?: (user: ILocalUser) => boolean;
+};
+
+const ShowUserIconOrName = ({ users, showNamesOrIcons, onRemoveUser, canRemoveUser }: Props): JSX.Element | null => {
     const { avatars } = useAvatarIcons()
     const { theme } = useCustomTheme();
+    const uiIcons = useUiIcons();
+    const { t } = useTranslation();
 
     if (showNamesOrIcons === "icons") {
         return (
@@ -21,13 +32,24 @@ const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], 
                 columnWrapperStyle={{ justifyContent: "space-around", alignItems: "center" }}
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
-                    <View key={index + "activityMemberIcon"}>
+                    <View key={index + "activityMemberIcon"} style={{ alignItems: "center" }}>
                         <View style={{ borderRadius: 50, borderWidth: 2, borderColor: theme.colors.secondary, padding: 5, backgroundColor:theme.colors.secondary }}>
                             <Image
                                 style={{ height: 50, width: 50 }}
                                 source={avatars[item.icon]}
                             />
                         </View>
+                        {onRemoveUser && (canRemoveUser?.(item) ?? true) && (
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t("groups.removeMemberAction", { name: item.username ?? t("groups.unnamedMember") })}
+                                onPress={() => onRemoveUser(item)}
+                                hitSlop={8}
+                                style={{ marginTop: theme.spacing.small }}
+                            >
+                                <uiIcons.RemoveUser size={22} color={theme.colors.primary} />
+                            </Pressable>
+                        )}
                     </View>
                 )}
             />
@@ -44,8 +66,18 @@ const ShowUserIconOrName = ({ users, showNamesOrIcons }: { users: ILocalUser[], 
                 columnWrapperStyle={{ justifyContent: "space-around", alignItems: "center" }}
                 extraData={showNamesOrIcons}
                 renderItem={({ item, index }) => (
-                    <View key={index + "activityMemberName"}>
+                    <View key={index + "activityMemberName"} style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.small }}>
                         <Text style={[theme.typography.body, { textAlign: "center" }]}>{item.username}</Text>
+                        {onRemoveUser && (canRemoveUser?.(item) ?? true) && (
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={t("groups.removeMemberAction", { name: item.username ?? t("groups.unnamedMember") })}
+                                onPress={() => onRemoveUser(item)}
+                                hitSlop={8}
+                            >
+                                <uiIcons.RemoveUser size={22} color={theme.colors.primary} />
+                            </Pressable>
+                        )}
                     </View>
                 )}
             />
