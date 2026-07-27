@@ -17,6 +17,16 @@
     "groupLinkShareError": "Der Gruppenlink konnte nicht in die Zwischenablage kopiert werden. Bitte schließe die App und versuche es erneut.",
     "groupLinkShareSuccess": "Der Gruppenlink wurde in die Zwischenablage kopiert. Teile ihn mit deinen Freunden, damit sie deiner Gruppe beitreten können.",
     "shareGroupLink": "Gruppenlink \n teilen",
+    "unnamedMember": "Unbenanntes Mitglied",
+    "removeMemberAction": "{{name}} entfernen",
+    "removeMemberSuccess": "{{name}} wurde aus der Gruppe entfernt.",
+    "removeMemberError": "Das Mitglied konnte nicht aus der Gruppe entfernt werden. Bitte versuche es erneut.",
+    "removeMemberDialog": {
+      "title": "Mitglied entfernen?",
+      "message": "Möchtest du {{name}} wirklich aus der Gruppe entfernen?",
+      "cancel": "Abbrechen",
+      "confirm": "Entfernen"
+    },
     "leaveGroupDialog": {
       "title": "Gruppe verlassen?",
       "cancel": "Abbrechen",

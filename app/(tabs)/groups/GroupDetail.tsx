@@ -10,10 +10,12 @@ import { createInviteLink } from '@/assets/ts/groupInvite';
 import { parseFirebaseGroup, parseFirebaseUser } from '@/assets/ts/parsing';
 import { ActivitySchema, zodErrorLogging } from '@/assets/ts/schemas';
 import ActivityListItem from '@/components/ActivityListItem';
+import { useAlert } from '@/components/AlertContext';
 import GoBack from '@/components/GoBack';
 import { Hint } from '@/components/Hint';
 import LoadingDots from '@/components/Loading';
 import ShowUserIconOrName from '@/components/ShowUserIconOrName';
+import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
 import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
@@ -29,6 +31,8 @@ const GroupDetail = () => {
   const { theme } = useCustomTheme();
   const { avatars } = useAvatarIcons()
   const { t } = useTranslation();
+  const { user } = useUser();
+  const { showAlert } = useAlert();
   const [group, setGroup] = useState<IGroup | undefined>();
   const [groupMembers, setGroupMembers] = useState<ILocalUser[]>([])
   const [loading, setLoading] = useState<boolean>(true)
@@ -64,11 +68,7 @@ const GroupDetail = () => {
         }
       })
       .then(([dbGroupMembers, allActivitiesOfGroup]: [ILocalUser[], IActivity[]]) => {
-        setGroupMembers(prevMembers => {
-          const existingIds = new Set(prevMembers.map(member => member.id));
-          const newMembers = dbGroupMembers.filter(member => !existingIds.has(member.id));
-          return [...prevMembers, ...newMembers];
-        });
+        setGroupMembers(dbGroupMembers);
         if (Array.isArray(allActivitiesOfGroup)) {
           setUpcommingActivities(allActivitiesOfGroup.filter(activity => activity.state === "pending" || activity.state === "scheduled")
             .sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2)));
@@ -130,6 +130,32 @@ const GroupDetail = () => {
       }).catch(() => setHintMessage(t("groups.groupLinkShareError")))
   }
 
+  const removeGroupMember = (member: ILocalUser) => {
+    if (!group || !user || member.id === user.id) return;
+
+    showAlert({
+      title: t("groups.removeMemberDialog.title"),
+      message: t("groups.removeMemberDialog.message", { name: member.username || t("groups.unnamedMember") }),
+      cancelText: t("groups.removeMemberDialog.cancel"),
+      confirmText: t("groups.removeMemberDialog.confirm"),
+      onConfirm: () => {
+        FirebaseExchange.removeGroupMember(group.id, member.id)
+          .then(() => {
+            setGroupMembers(currentMembers => currentMembers.filter(currentMember => currentMember.id !== member.id));
+            setGroup(currentGroup => currentGroup
+              ? { ...currentGroup, memberUuids: currentGroup.memberUuids.filter(memberUuid => memberUuid !== member.id) }
+              : currentGroup
+            );
+            setHintMessage(t("groups.removeMemberSuccess", { name: member.username || t("groups.unnamedMember") }));
+          })
+          .catch((err) => {
+            console.error("Error removing group member:", err);
+            setHintMessage(t("groups.removeMemberError"));
+          });
+      },
+    });
+  }
+
   if (loading) return <LoadingDots visible />;
 
   return (
@@ -166,7 +192,14 @@ const GroupDetail = () => {
               thumbColor={theme.colors.textLight}
             />
           </View>
-          <ShowUserIconOrName users={groupMembers} showNamesOrIcons={showNamesOrIcons} />
+          <ShowUserIconOrName
+            users={groupMembers}
+            showNamesOrIcons={showNamesOrIcons}
+            onRemoveUser={(group?.ownerUuid ?? group?.memberUuids[0]) === user?.id
+              ? removeGroupMember
+              : undefined}
+            canRemoveUser={member => member.id !== user?.id}
+          />
         </View>
         <View>
           <View style={{ flexDirection: "row", justifyContent: "space-between" }}>

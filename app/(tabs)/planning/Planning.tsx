@@ -115,9 +115,11 @@ const Planning = () => {
       minParticipants: minParticipants!
     }
     FirebaseExchange.addDocumentToCollection("Group", newActivity, selectedGroupId, 'Activity')
+      .then(() => {
+        resetAllStates();
+        router.replace("/(tabs)/activities/Activities");
+      })
       .catch((err) => FirebaseExchange.firebaseErrorHandling(err))
-    resetAllStates();
-    router.replace("/(tabs)/activities/Activities");
   }
 
   const submittedNewTimeSlot = (timeSlot: ITimeInterval) => {

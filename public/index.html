@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <title>Startseite</title>
+    <title>Aktivitäten Finder</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <script>
     // Wenn die Seite geladen wird:
@@ -10,7 +10,7 @@
       // 1. Querystring holen:
       const params = window.location.search; // z.B. "?groupId=...&inviteCode=..."
       // 2. Custom-Scheme URL bauen:
-      const appUrl = `homiesorganizer://Join${params}`;
+      const appUrl = `aktivitaetenfinder://Join${params}`;
       // 3. Versuchen, die App zu öffnen:
       window.location.href = appUrl;
       console.log("Versuche, die App zu öffnen:", appUrl);

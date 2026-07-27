@@ -1,10 +1,8 @@
-import { collectionGroup, FirestoreError, onSnapshot, query, Unsubscribe, where } from '@react-native-firebase/firestore';
+import { FirestoreError, onSnapshot, Unsubscribe } from '@react-native-firebase/firestore';
 import { IActivitiesWithGroup, IActivity } from "../interfaces/ActivityInterface";
 import { IComment } from "../interfaces/CommentInterface";
-import { TAvailableFirebaseSubCollections } from '../interfaces/FirebaseInterface';
 import { ILocalUser } from "../interfaces/ProfileInterface";
 import { getAllActivitiesByGroupIds } from './componentFunctions/activities';
-import { firestoreInst } from './firebaseConfig';
 import { FirebaseExchange } from "./firebaseExchange";
 import { parseFirebaseActivity, parseFirebaseComment, parseFirebaseGroup, parseFirebaseUser } from "./parsing";
 
@@ -63,16 +61,9 @@ export class FirebaseSnapshotListener {
    * @param callback 
    */
   static snapshotListenerForNewActivitiesInGroupsOfUser(groupIdsOfUser: string[], callback: (newlyCreatedActivity: IActivitiesWithGroup | null) => void): Unsubscribe {
-    const chunks: string[][] = [] // Split in chunks of 10, because Firestore has a limit of 10 where clauses per query
-    for (let i = 0; i < groupIdsOfUser.length; i += 10) {
-      chunks.push(groupIdsOfUser.slice(i, i + 10))
-    }
-    const subcollection: TAvailableFirebaseSubCollections = "Activity";
-    const activityGroupIdKey: keyof IActivity = "owningGroupId"; // Key in Activity document that contains the groupId
-    const subcollectionRef = collectionGroup(firestoreInst, subcollection)
-    const unsubscribes = chunks.map((chunk) => {
-      const q = query(subcollectionRef, where(activityGroupIdKey, "in", chunk));
-      const unsub = onSnapshot(q, (snapshot) => {
+    const unsubscribes = groupIdsOfUser.map((groupId) => {
+      const activityCollection = FirebaseExchange.getFirebaseCollection("Group", groupId, "Activity");
+      return onSnapshot(activityCollection, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
           if (change.type === "added") {
             let newActivity = parseFirebaseActivity(change.doc);
@@ -86,13 +77,12 @@ export class FirebaseSnapshotListener {
                 callback(actByGroup);
               })
               .catch((err) => {
-                console.error("Error fetching group document for new activity:", q, err);
+                console.error("Error fetching group document for new activity:", groupId, err);
                 callback(null);
               });
           }
         });
       }, (error:FirestoreError) => console.error("Error setting up snapshot listener for new Activity:", error.name, error.message, error.cause));
-      return unsub;
     });
     // Return a cleanup function that unsubscribes from all listeners
     return () => {
