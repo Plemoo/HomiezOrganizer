@@ -1,4 +1,3 @@
-import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IActivity } from '@/assets/interfaces/ActivityInterface';
 import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
@@ -17,11 +16,10 @@ import LoadingDots from '@/components/Loading';
 import ShowUserIconOrName from '@/components/ShowUserIconOrName';
 import { useUser } from '@/components/ProfileInformationContext';
 import { useCustomTheme } from '@/components/ThemeContext';
-import { useIsFocused } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { UnknownInputParams, useLocalSearchParams, useRouter } from 'expo-router';
+import { UnknownInputParams, useIsFocused, useLocalSearchParams, useRouter } from 'expo-router';
 import * as jdenticon from 'jdenticon';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -29,7 +27,6 @@ import { SvgXml } from 'react-native-svg';
 const GroupDetail = () => {
   const router = useRouter();
   const { theme } = useCustomTheme();
-  const { avatars } = useAvatarIcons()
   const { t } = useTranslation();
   const { user } = useUser();
   const { showAlert } = useAlert();
@@ -43,13 +40,15 @@ const GroupDetail = () => {
   const [showNamesOrIcons, setShowNamesOrIcons] = useState<"names" | "icons">("icons");
   const [hintMessage, setHintMessage] = useState<string | null>(null)
   const { groupIdParameter }: IFirebaseSearchParameter = useLocalSearchParams(); // this is set when the user is transferred from Join
+  const routerRef = useRef(router);
+  const fetchGroupActivitiesRef = useRef(fetchFirebaseGroupActivities);
+  const fetchGroupMembersRef = useRef(fetchtGroupMembers);
 
   useEffect(() => {
     if (!groupIdParameter) {  // Force go back when groupObjectString is not correct
-      router.replace('/(tabs)/groups/Groups')
+      routerRef.current.replace('/(tabs)/groups/Groups')
       return;
     }
-    console.log("GroupDetail useEffect", groupIdParameter);
     FirebaseExchange.getFirebaseDocument(groupIdParameter!, "Group")
       .then((groupDoc) => {
         const group = parseFirebaseGroup(groupDoc);
@@ -62,7 +61,7 @@ const GroupDetail = () => {
       .then((group: IGroup | null) => {
         if (group) {
           setGroup(group)
-          return Promise.all([fetchtGroupMembers(group), fetchFirebaseGroupActivities(group)])//
+          return Promise.all([fetchGroupMembersRef.current(group), fetchGroupActivitiesRef.current(group)])//
         } else {
           throw new Error("No Group found");
         }
@@ -81,7 +80,7 @@ const GroupDetail = () => {
         }
       })
       .catch((err) =>{
-        router.replace('/(tabs)/groups/Groups')
+        routerRef.current.replace('/(tabs)/groups/Groups')
         console.error("Error during Group Detail firebase loading", err)
       })
       .finally(() => setLoading(false))
@@ -90,7 +89,7 @@ const GroupDetail = () => {
 
 
   // TODO: Test schreiben
-  const fetchFirebaseGroupActivities = useCallback((selectedGroup: IGroup): Promise<IActivity[]> => {
+  function fetchFirebaseGroupActivities(selectedGroup: IGroup): Promise<IActivity[]> {
     return FirebaseExchange.getAllDocumentsOfCollection('Group', selectedGroup.id, "Activity")
       .then((allActivities) => {
         return allActivities.docs.filter((docRef) => docRef.exists())
@@ -104,17 +103,17 @@ const GroupDetail = () => {
           })
           .filter((activity): activity is IActivity => activity !== null);
       })
-  }, [])
+  }
 
   // TODO: Test schreiben
-  const fetchtGroupMembers = useCallback((selectedGroup: IGroup): Promise<ILocalUser[]> => {
+  function fetchtGroupMembers(selectedGroup: IGroup): Promise<ILocalUser[]> {
     return FirebaseExchange.getFirebaseDocumentArray(selectedGroup.memberUuids, 'User')//
       .then((docRefArray) => {
         return docRefArray
           .map((doc) => parseFirebaseUser(doc))//
           .filter((user) => user !== null);
       })
-  }, [])
+  }
 
   const sendGroupInvite = () => {
     if (!group) return;
@@ -164,7 +163,7 @@ const GroupDetail = () => {
         <Hint
           message={hintMessage}
           onHide={() => setHintMessage(null)}
-          textStyle={[theme.typography.heading3, { color: theme.colors.secondary }]}
+          textStyle={[theme.typography.heading3, { color: theme.colors.muted }]}
         />
       )}
       <View style={[theme.containers.leftAlignedContainer, { gap: theme.spacing.medium }]}>

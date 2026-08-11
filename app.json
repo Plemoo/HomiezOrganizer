@@ -1,13 +1,12 @@
 {
   "expo": {
     "name": "Aktivitäten Finder",
-    "slug": "aktivitaeten-finder",
+    "slug": "HomiesOrganizer",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/other/aktivitaetenFinder.png",
     "scheme": "aktivitaetenfinder",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "extra": {
       "eas": {
         "projectId": "9b75a12e-e96f-4f25-9f29-ca766b90d6d1"
@@ -27,11 +26,14 @@
       "googleServicesFile": "./secure/GoogleService-Info.plist"
     },
     "android": {
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/other/aktivitaetenFinder.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "googleServicesFile": "./secure/google-services.json",
       "package": "com.homiesOrganizer"
     },
@@ -52,8 +54,7 @@
         {
           "icon": "./assets/images/other/aktivitaetenFinderNotification.png",
           "color": "#FFFFFF",
-          "channelId": "default",
-          "useNextNotificationApi": true
+          "defaultChannel": "default"
         }
       ],
       "expo-web-browser",

@@ -48,3 +48,4 @@ ios/
 coverage/
 
 .vscode/
+firestore-debug.log

@@ -5,6 +5,7 @@ import { lightTheme } from '@/assets/ts/lightThemeProperties';
 import { darkTheme } from '@/assets/ts/darkThemeProperties';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useUser } from './ProfileInformationContext';
 
 
@@ -26,7 +27,8 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
-      <View style={{ flex: 1, backgroundColor: "white" }}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar style={theme === darkTheme ? "light" : "dark"} />
         {children}
       </View>
     </ThemeContext.Provider>

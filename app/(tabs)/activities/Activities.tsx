@@ -1,6 +1,5 @@
-import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
-import { IActivitiesWithGroup, IActivity, IActivityWithGroupIconAndName } from '@/assets/interfaces/ActivityInterface';
+import { IActivitiesWithGroup, IActivityWithGroupIconAndName } from '@/assets/interfaces/ActivityInterface';
 import { getUniqueActivitiesWithGroupIcon, setStateForEndedActivitesToClosed, sortActivitiesByDueDate, sortActivitiesByEarliestAvailability } from '@/assets/ts/componentFunctions/activities';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import ActivityListItem from '@/components/ActivityListItem';
@@ -10,7 +9,7 @@ import { useCustomTheme } from '@/components/ThemeContext';
 import { Unsubscribe } from '@react-native-firebase/firestore';
 import { useFocusEffect } from 'expo-router';
 import * as jdenticon from 'jdenticon';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, ScrollView, Text, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
@@ -20,43 +19,50 @@ const Activities = () => {
   const { t } = useTranslation();
   const { theme } = useCustomTheme();
   const uiIcons = useUiIcons()
-  const { avatars } = useAvatarIcons()
   const [loading, setLoading] = useState(true)
   const [scheduledActivities, setScheduledActivities] = useState<IActivityWithGroupIconAndName[]>([]);
   const [pendingActivities, setPendingActivities] = useState<IActivityWithGroupIconAndName[]>([]);
+  const userId = user?.id;
+  const groupIds = user?.groupUuids;
 
 
-  useFocusEffect(()=>{
+  useFocusEffect(useCallback(() => {
     // When the user focuses the Activities tab, we want to update the scheduled activities that are already closed
     if(scheduledActivities.length>0){
       setStateForEndedActivitesToClosed(scheduledActivities)
     }
-  })
+  }, [scheduledActivities]))
 
   useEffect(() => {
     let newActivityUnsubscribe: Unsubscribe | null = null;
     let newGroupWithActivitiesUnsubscribe: Unsubscribe | null = null;
-    let activityChangeListeners: Unsubscribe[] = [];
     try {
       // if (!isFocused) throw new Error("Activities component is not focused, so no need to load activities.");
-      if (!user) return
-      if (!user.groupUuids) throw new Error("User has no groupUuids on Activity init.");
-      if (!user.id) throw new Error("User has no id on activity init.");
+      if (!userId) return
+      if (!groupIds) throw new Error("User has no groupUuids on Activity init.");
       // Just add the new activity that were newly created in the existing group of the user
-      newActivityUnsubscribe = FirebaseSnapshotListener.snapshotListenerForNewActivitiesInGroupsOfUser(user.groupUuids, (newActivityWithGroup: IActivitiesWithGroup | null) => {
-        if (!newActivityWithGroup || !newActivityWithGroup.activities || newActivityWithGroup.activities.length !== 1) throw new Error("New activity with group is null or has no activities.");
+      newActivityUnsubscribe = FirebaseSnapshotListener.snapshotListenerForNewActivitiesInGroupsOfUser(groupIds, (newActivityWithGroup: IActivitiesWithGroup | null) => {
+        if (!newActivityWithGroup || !newActivityWithGroup.activities || newActivityWithGroup.activities.length !== 1) return;
         const firebaseAct = newActivityWithGroup.activities[0];
+        const decoratedActivity: IActivityWithGroupIconAndName = {
+          ...firebaseAct,
+          groupIcon: newActivityWithGroup.group.icon,
+          groupName: newActivityWithGroup.group.name,
+        };
         if (firebaseAct.state === "pending") {
-          const activityByGroup: IActivityWithGroupIconAndName[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
-          setPendingActivities((prev) => getUniqueActivitiesWithGroupIcon(prev, activityByGroup).sort((activity1, activity2) => sortActivitiesByEarliestAvailability(activity1, activity2)));
+          setPendingActivities((prev) => getUniqueActivitiesWithGroupIcon(prev.filter((activity) => activity.id !== firebaseAct.id), [decoratedActivity]).sort((a, b) => sortActivitiesByEarliestAvailability(a, b)));
+          setScheduledActivities((prev) => prev.filter((activity) => activity.id !== firebaseAct.id));
         } else if (firebaseAct.state === "scheduled") {
-          const activityByGroup: IActivityWithGroupIconAndName[] = getActivitiesWithGroupIcon([{ activities: [firebaseAct], group: newActivityWithGroup.group }], "pending")
-          setScheduledActivities((prev) => getUniqueActivitiesWithGroupIcon(prev, activityByGroup).sort((activity1, activity2) => sortActivitiesByDueDate(activity1, activity2)));
+          setScheduledActivities((prev) => getUniqueActivitiesWithGroupIcon(prev.filter((activity) => activity.id !== firebaseAct.id), [decoratedActivity]).sort((a, b) => sortActivitiesByDueDate(a, b)));
+          setPendingActivities((prev) => prev.filter((activity) => activity.id !== firebaseAct.id));
+        } else {
+          setPendingActivities((prev) => prev.filter((activity) => activity.id !== firebaseAct.id));
+          setScheduledActivities((prev) => prev.filter((activity) => activity.id !== firebaseAct.id));
         }
         setLoading(false);
       });
       // Overwrite all activities with the new activities per group, once the user joins a new
-      newGroupWithActivitiesUnsubscribe = FirebaseSnapshotListener.snapshotListenerForUserJoinsNewGroup(user.id, (activitiesWithGroup: IActivitiesWithGroup[] | null) => {
+      newGroupWithActivitiesUnsubscribe = FirebaseSnapshotListener.snapshotListenerForUserJoinsNewGroup(userId, (activitiesWithGroup: IActivitiesWithGroup[] | null) => {
         if (!activitiesWithGroup || activitiesWithGroup.length === 0) {
           setPendingActivities([]);
           setScheduledActivities([]);
@@ -69,14 +75,6 @@ const Activities = () => {
         setScheduledActivities(scheduledActivities);
         setLoading(false);
       });
-      // Listen for state/participants changes of the activities
-      activityChangeListeners = [...pendingActivities, ...scheduledActivities].map((activity) => {
-        return FirebaseSnapshotListener.snapshotListenerForActivityDetailChange(activity.owningGroupId, activity.id, (activityWithChange: IActivity | null) => {
-          if (!activityWithChange) return;
-          // Update the activity in the pending or scheduled activities
-          fillPendingScheduledActivitiesBasedOnActivityChanges(activityWithChange);
-        });
-      });
     } catch (err) {
       setLoading(false);
       setPendingActivities([]);
@@ -86,46 +84,8 @@ const Activities = () => {
     return () => {
       newActivityUnsubscribe?.();
       newGroupWithActivitiesUnsubscribe?.();
-      activityChangeListeners.forEach(unsub => unsub());
     };
-  }, [userLoading, user?.id, user?.groupUuids]);
-
-
-  function fillPendingScheduledActivitiesBasedOnActivityChanges(activityWithChange: IActivity) {
-    if (activityWithChange.state === "pending") {
-      setPendingActivities((prev) => prev.map((act) => {
-        if (act.id === activityWithChange.id) {
-          return { ...activityWithChange, groupIcon: act.groupIcon, groupName: act.groupName };
-        }
-        return act;
-      }));
-    } else if (activityWithChange.state === "scheduled") {
-      // Activity was pending before and not scheduled yet
-      if (pendingActivities.some((act) => act.id === activityWithChange.id) && !scheduledActivities.some((act) => act.id === activityWithChange.id)) {
-        // Add new Activity to Scheduled Activities and remove it from Pending Activities
-        let oldActivity = pendingActivities.filter((act) => act.id === activityWithChange.id)[0];
-        setScheduledActivities((prev) => [...prev, { ...activityWithChange, groupIcon: oldActivity.groupIcon, groupName: oldActivity.groupName }]);
-        setPendingActivities((prev) => prev.filter((act) => act.id !== activityWithChange.id));
-      } else {
-        // Update Activity in Scheduled Activities
-        setScheduledActivities((prev) => prev.map((act) => {
-          if (act.id === activityWithChange.id) {
-            return { ...activityWithChange, groupIcon: act.groupIcon, groupName: act.groupName };
-          }
-          return act;
-        }));
-      }
-    } else if (activityWithChange.state === "cancelled" || activityWithChange.state === "closed") {
-      // Remove Activity from Pending Activities
-      if (pendingActivities.some((act) => act.id === activityWithChange.id)) {
-        setPendingActivities((prev) => prev.filter((act) => act.id !== activityWithChange.id));
-      }
-      // Remove Activity from Scheduled Activities
-      if (scheduledActivities.some((act) => act.id === activityWithChange.id)) {
-        setScheduledActivities((prev) => prev.filter((act) => act.id !== activityWithChange.id));
-      }
-    }
-  }
+  }, [userLoading, userId, groupIds]);
 
 
   const getActivitiesWithGroupIcon = (activitiesWithGroup: IActivitiesWithGroup[], filterStatus: "pending" | "scheduled"): IActivityWithGroupIconAndName[] => {

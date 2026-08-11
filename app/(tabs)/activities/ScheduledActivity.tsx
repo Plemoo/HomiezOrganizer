@@ -44,7 +44,7 @@ const ScheduledActivity = () => {
         let unsubscribe: (() => void) | undefined;
         if (!activityIdParameter || !groupIdParameter) return;
         let loadedActivity: IActivity | null = null;
-        FirebaseSnapshotListener.snapshotListenerForActivityDetailChange(groupIdParameter, activityIdParameter, (activityWithChange: IActivity | null) => {
+        unsubscribe = FirebaseSnapshotListener.snapshotListenerForActivityDetailChange(groupIdParameter, activityIdParameter, (activityWithChange: IActivity | null) => {
             loadedActivity = activityWithChange;
             fetchUserDocumentsForSelectedTimeSlot(activityWithChange)
                 .then((userDocArray) => {
@@ -79,7 +79,7 @@ const ScheduledActivity = () => {
                 })
         });
         return () => unsubscribe?.();
-    }, [activityIdParameter, groupIdParameter, fetchUserDocumentsForSelectedTimeSlot])
+    }, [activityIdParameter, groupIdParameter, fetchUserDocumentsForSelectedTimeSlot, router])
 
 
 

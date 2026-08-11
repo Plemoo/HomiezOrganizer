@@ -8,6 +8,7 @@ import { UnknownInputParams, useRouter } from 'expo-router';
 import React, {
     createContext,
     ReactNode,
+    useCallback,
     useContext,
     useEffect
 } from 'react';
@@ -38,7 +39,7 @@ export function NotificationsProvider({
     const router = useRouter();
 
     // Ask & get token
-    async function registerForPushNotifications() {
+    const registerForPushNotifications = useCallback(async () => {
         if (Platform.OS === "android") {
             await Notifications.setNotificationChannelAsync('default', {
                 name: 'default',
@@ -56,77 +57,62 @@ export function NotificationsProvider({
                 finalStatus = status;
             }
             const granted = finalStatus === 'granted';
-            if (!granted) throw new Error("Push notification permission not granted");
+            if (!granted) return false;
+            return true;
         } catch (error) {
             console.error("Error registering for push notifications:", error);
+            return false;
         }
-    }
+    }, []);
+
+    const handleNotification = useCallback((notificationData: Notifications.NotificationContent | CloudFunctionInterface) => {
+        if (!isCloudFunctionNotification(notificationData)) return;
+        const searchParams: IFirebaseSearchParameter = {
+            activityIdParameter: notificationData.data.params.activityIdParameter,
+            groupIdParameter: notificationData.data.params.groupIdParameter
+        };
+        if (notificationData.data.type === "newComment") {
+            FirebaseExchange.getFirebaseDocument(searchParams.activityIdParameter!, "Group", searchParams.groupIdParameter, "Activity")
+                .then((activityDoc) => {
+                    if (!activityDoc.exists()) return;
+                    const activity: IActivity | null = parseFirebaseActivity(activityDoc);
+                    if (activity?.state === "pending") {
+                        router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
+                    } else if (activity?.state === "scheduled") {
+                        router.replace({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
+                    }
+                })
+                .catch((error) => console.error("Could not open notification target:", error));
+        } else if (notificationData.data.type === "activityScheduled") {
+            router.replace({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
+        } else if (notificationData.data.type === "activityCancelled") {
+            router.replace({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams });
+        } else {
+            router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
+        }
+    }, [router]);
 
     // Listen for notifications
     useEffect(() => {
         let responseListener: Notifications.EventSubscription | null = null;
         // let sub: Notifications.EventSubscription | null = null;
         // Ensure we call register once
-        registerForPushNotifications()
-            .then(() => {
-                //!!!!!!! No need for a listener in the foreground as it's handled by the notification handler!!!!
-                // sub = Notifications.addNotificationReceivedListener(
-                //     (notification) => {
-                //         handleNotification(notification.request.content as any);
-                //         setLastNotification(notification);
-                //     }
-                // );
-                // Handles notifications when the user interacts with them (taps on them)
-                responseListener = Notifications.addNotificationResponseReceivedListener(
-                    (response) => {
-                        handleNotification(response.notification.request.content as any);
-                    }
-                );
-            }).catch((err) => console.error("Error registering for push notifications:", err));
+        void registerForPushNotifications();
+        responseListener = Notifications.addNotificationResponseReceivedListener(
+            (response) => handleNotification(response.notification.request.content)
+        );
+        Notifications.getLastNotificationResponseAsync()
+            .then((response) => {
+                if (response) handleNotification(response.notification.request.content);
+            })
+            .catch((error) => console.error("Error reading the initial notification:", error));
         // Handles notifications when the app is in the foreground
 
         return () => {
             // sub?.remove();
             responseListener?.remove();
         };
-    }, []);
-
-
-    /**
-     * Navigates to the appropriate page dependding on the notification
-     * @param notificationData The notification data received from the push notification
-     */
-    function handleNotification(notificationData: CloudFunctionInterface) {
-        const searchParams: IFirebaseSearchParameter = {
-            activityIdParameter: notificationData.data.params.activityIdParameter,
-            groupIdParameter: notificationData.data.params.groupIdParameter
-        }
-        if (notificationData.data.type === "newComment") {
-            FirebaseExchange.getFirebaseDocument(searchParams.activityIdParameter!, "Group", searchParams.groupIdParameter, "Activity")
-                .then((activityDoc) => {
-                    if (activityDoc.exists()) {
-                        const activity: IActivity | null = parseFirebaseActivity(activityDoc);
-                        if (activity && activity.state === "pending") {
-                            // Handle newComment for pending activities
-                            router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
-                        } else if (activity && activity.state === "scheduled") {
-                            router.replace({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
-                        }
-                    }
-                });
-        } else if (notificationData.data.type === "activityScheduled") {
-            router.replace({ pathname: "/(tabs)/activities/ScheduledActivity", params: searchParams as UnknownInputParams });
-        } else if (notificationData.data.type === "newActivity") {
-            // Handle newComment, activityScheduled, newActivity
-            router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
-        } else if (notificationData.data.type === "activityCancelled") {
-            // Handle activityCancelled
-            router.replace({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams });
-        } else if (notificationData.data.type === "newTimeslot") {
-            router.replace({ pathname: "/(tabs)/activities/ActivityDetail", params: searchParams as UnknownInputParams });
-        }
-
-    }
+    }, [handleNotification, registerForPushNotifications]);
 
     return (
         <NotificationsContext.Provider value={undefined}>
@@ -138,4 +124,14 @@ export function NotificationsProvider({
 // 4) consumer hook
 export function useNotifications() {
     return useContext(NotificationsContext);
+}
+
+function isCloudFunctionNotification(value: Notifications.NotificationContent | CloudFunctionInterface): value is CloudFunctionInterface {
+    const candidate = value as Partial<CloudFunctionInterface>;
+    const type = candidate.data?.type;
+    const params = candidate.data?.params;
+    return typeof type === 'string'
+        && ['newActivity', 'newComment', 'activityScheduled', 'activityCancelled', 'newTimeslot'].includes(type)
+        && typeof params?.groupIdParameter === 'string'
+        && typeof params?.activityIdParameter === 'string';
 }

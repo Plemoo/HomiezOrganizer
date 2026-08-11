@@ -6,7 +6,7 @@ import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
 import { getDefaultLanguage } from '@/assets/ts/i18next';
 import { Unsubscribe } from '@react-native-firebase/firestore';
 import * as Notifications from 'expo-notifications';
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 
 interface UserContextType {
   user: ILocalUser | undefined;
@@ -28,22 +28,30 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<ILocalUser | undefined>();
   const [loading, setLoading] = useState<boolean>(true);
 
-  const initRandomUserIcon = getRandomAvatarKey()
-  const userLanguage = getDefaultLanguage()
+  const [initRandomUserIcon] = useState(() => getRandomAvatarKey())
+  const [userLanguage] = useState<"de" | "en">(() => getDefaultLanguage() === "de" ? "de" : "en")
   const initUserName = ""
+  const setupUserOnStartupRef = useRef(setupUserOnStartup);
 
 
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
+    let cancelled = false;
     setLoading(true);
-    setupUserOnStartup()
+    setupUserOnStartupRef.current()
       .then((unsub) => {
+        if (cancelled) {
+          unsub();
+          return;
+        }
         unsubscribe = unsub;
-        setLoading(false);
       }).catch((error) => {
         console.error("Error setting up user on startup in ProfileInformationContext:", error);
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
+      cancelled = true;
       if (unsubscribe) unsubscribe();
     }
   }, []);
@@ -62,10 +70,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const firebaseUser = await FirebaseExchange.getFirebaseDocument(firebaseUserId, "User"); // Get the user document from Firebase
         if (!firebaseUser.exists()) throw new Error("Firebase user document does not exist for UID: " + firebaseUserId);
-      } catch (err) {
+      } catch {
         let newUser = await createNewUserBasedOnSecureStoreLeftover(firebaseUserId); // Create a new user, with the new id, originating form a new sign in
-        const tokenData = await Notifications.getExpoPushTokenAsync();
-        newUser.expoPushToken = tokenData.data; // Set the expo push token for the new user
+        const expoPushToken = await getExpoPushTokenSafely();
+        if (expoPushToken) newUser.expoPushToken = expoPushToken;
         // NEED TO UPDATE USER HERE, BECAUSE fo the setDoc functionality lets you define my own id
         await FirebaseExchange.updateFirebaseDocument(newUser, "User", firebaseUserId); // Write the new User into the firebase db
       }
@@ -73,9 +81,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return FirebaseSnapshotListener.snapshotListenerForUserChange(firebaseUserId, async (userWithChanges) => {
         // Firebase User HAS to exist, because it is created new in lines before + when user doesnt exist, a read is not allowed -> no Permisison exception
         if (!userWithChanges) throw new Error("User with changes is null or undefined in ProfileInformationContext (Should not happen, since not defined users result in no-permission)");
-        const tokenData = await Notifications.getExpoPushTokenAsync();
-        if(userWithChanges.expoPushToken !== tokenData.data){
-          userWithChanges.expoPushToken = tokenData.data; // Update the expo push token for the user
+        const expoPushToken = await getExpoPushTokenSafely();
+        if(expoPushToken && userWithChanges.expoPushToken !== expoPushToken){
+          userWithChanges.expoPushToken = expoPushToken;
           await FirebaseExchange.updateFirebaseDocument(userWithChanges, "User", firebaseUserId); // Write the new User into the firebase db
         }
         SecureStorageHandler.updateSecureStore(userWithChanges).catch((error) => console.error("Error updating secure store with user changes in ProfileInformationContext:", error))
@@ -107,6 +115,17 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     </UserContext.Provider>
   );
 };
+
+async function getExpoPushTokenSafely(): Promise<string | undefined> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return undefined;
+    return (await Notifications.getExpoPushTokenAsync()).data;
+  } catch (error) {
+    console.warn("Push token could not be loaded; continuing without notifications.", error);
+    return undefined;
+  }
+}
 
 export const useUser = (): UserContextType => {
   const context = useContext(UserContext);

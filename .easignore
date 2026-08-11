@@ -16,6 +16,16 @@ yarn-error.log*
 .env.local
 .env.development.local
 .env.*.local
+# Native credentials and local Firebase configuration. The Android production
+# build receives google-services.json through the GOOGLE_SERVICES_JSON EAS file
+# environment variable instead.
+secure/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
 # Tests and docs
 __tests__/
 android/

@@ -1,8 +1,9 @@
 import { Expo, ExpoPushMessage } from 'expo-server-sdk'
-import * as admin from 'firebase-admin'
+import { initializeApp } from 'firebase-admin/app'
+import { DocumentData, FieldValue, Firestore, getFirestore } from 'firebase-admin/firestore'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
-admin.initializeApp()
+initializeApp()
 const expo = new Expo()
 
 const activityCollectionString = "Activity";
@@ -40,7 +41,7 @@ export const createGroup = onCall(
             throw new HttpsError("invalid-argument", "The group data is invalid.");
         }
 
-        const db = admin.firestore();
+        const db = getFirestore();
         const groupRef = db.collection(groupCollectionString).doc();
         const userRef = db.doc(`${userCollectionString}/${userId}`);
 
@@ -54,11 +55,11 @@ export const createGroup = onCall(
                 icon,
                 memberUuids: [userId],
                 ownerUuid: userId,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
             });
             transaction.update(userRef, {
-                groupUuids: admin.firestore.FieldValue.arrayUnion(groupRef.id),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                groupUuids: FieldValue.arrayUnion(groupRef.id),
+                updatedAt: FieldValue.serverTimestamp(),
             });
         });
 
@@ -77,7 +78,7 @@ export const redeemGroupInvite = onCall(
             throw new HttpsError("invalid-argument", "A group ID and invite code are required.");
         }
 
-        const db = admin.firestore();
+        const db = getFirestore();
         const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
         const inviteRef = groupRef.collection("Invitation").doc(inviteCode);
         const userRef = db.doc(`${userCollectionString}/${userId}`);
@@ -96,12 +97,12 @@ export const redeemGroupInvite = onCall(
             }
 
             transaction.update(groupRef, {
-                memberUuids: admin.firestore.FieldValue.arrayUnion(userId),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                memberUuids: FieldValue.arrayUnion(userId),
+                updatedAt: FieldValue.serverTimestamp(),
             });
             transaction.update(userRef, {
-                groupUuids: admin.firestore.FieldValue.arrayUnion(groupId),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                groupUuids: FieldValue.arrayUnion(groupId),
+                updatedAt: FieldValue.serverTimestamp(),
             });
         });
 
@@ -123,7 +124,7 @@ export const removeGroupMember = onCall(
             throw new HttpsError("failed-precondition", "The group owner cannot remove themselves.");
         }
 
-        const db = admin.firestore();
+        const db = getFirestore();
         const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
         const memberRef = db.doc(`${userCollectionString}/${memberUuid}`);
 
@@ -142,13 +143,13 @@ export const removeGroupMember = onCall(
             }
 
             transaction.update(groupRef, {
-                memberUuids: admin.firestore.FieldValue.arrayRemove(memberUuid),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                memberUuids: FieldValue.arrayRemove(memberUuid),
+                updatedAt: FieldValue.serverTimestamp(),
             });
             if (memberSnap.exists) {
                 transaction.update(memberRef, {
-                    groupUuids: admin.firestore.FieldValue.arrayRemove(groupId),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    groupUuids: FieldValue.arrayRemove(groupId),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
             }
         });
@@ -167,7 +168,7 @@ export const leaveGroup = onCall(
             throw new HttpsError("invalid-argument", "A group ID is required.");
         }
 
-        const db = admin.firestore();
+        const db = getFirestore();
         const groupRef = db.doc(`${groupCollectionString}/${groupId}`);
         const userRef = db.doc(`${userCollectionString}/${userId}`);
 
@@ -186,13 +187,13 @@ export const leaveGroup = onCall(
             }
 
             transaction.update(groupRef, {
-                memberUuids: admin.firestore.FieldValue.arrayRemove(userId),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                memberUuids: FieldValue.arrayRemove(userId),
+                updatedAt: FieldValue.serverTimestamp(),
             });
             if (userSnap.exists) {
                 transaction.update(userRef, {
-                    groupUuids: admin.firestore.FieldValue.arrayRemove(groupId),
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    groupUuids: FieldValue.arrayRemove(groupId),
+                    updatedAt: FieldValue.serverTimestamp(),
                 });
             }
         });
@@ -219,7 +220,7 @@ export const sendActivityStateChangeNotification = onDocumentUpdated(
             const afterChange = snap.after.data() // type assertion to IDbActivity
             const activityIdPara = event.params.activityId//[activityIdString]
             const groupIdPara = event.params.groupId//[groupIdString]
-            const db = admin.firestore();
+            const db = getFirestore();
             // Aktivität angesetzt/gestartet
             if (beforeChange.state === "pending" && afterChange.state === "scheduled") {
                 await sendActivityScheduledNotification(db, afterChange, groupIdPara, activityIdPara);
@@ -236,7 +237,7 @@ export const sendActivityStateChangeNotification = onDocumentUpdated(
     }
 )
 
-async function sendNewTimeslotForActivityNotification(db: admin.firestore.Firestore, afterChange: any, beforeChange: any, groupIdPara: string, activityIdPara: string) {
+async function sendNewTimeslotForActivityNotification(db: Firestore, afterChange: any, beforeChange: any, groupIdPara: string, activityIdPara: string) {
     const users = await getFirebaseUsersOfGroup(db, groupIdPara);
     let expoPushNotifications: ExpoPushMessage[] = [];
     if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when new timeslot is added`);
@@ -266,7 +267,7 @@ function containsTimeSlot(beforeChange: any, afterSlot: any) {
     return beforeChange.timeSlotsPerUserUuid.some((s: any) => s.slots.start.toMillis() === afterSlot.start.toMillis() && s.slots.end.toMillis() === afterSlot.end.toMillis());
 }
 
-async function sendActivityCancelledNotification(db: admin.firestore.Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
+async function sendActivityCancelledNotification(db: Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
     const users = await getFirebaseUsersOfGroup(db, groupIdPara);
     let expoPushNotifications: ExpoPushMessage[] = [];
     if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} for activity cancellation`);
@@ -285,7 +286,7 @@ async function sendActivityCancelledNotification(db: admin.firestore.Firestore, 
     }
 }
 
-async function sendActivityScheduledNotification(db: admin.firestore.Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
+async function sendActivityScheduledNotification(db: Firestore, afterChange: any, groupIdPara: string, activityIdPara: string) {
     const users = await getFirebaseUsersOfGroup(db, groupIdPara);
     let expoPushNotifications: ExpoPushMessage[] = [];
     if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara} when activity is scheduled`);
@@ -328,7 +329,7 @@ export const sendNewCommentForActivityNotification = onDocumentCreated(
             const activitySnap = await snap.ref.parent.parent?.get();
             const activityIdPara = event.params.activityId
             const groupIdPara = event.params.groupId
-            const db = admin.firestore();
+            const db = getFirestore();
             const users = await getFirebaseUsersOfGroup(db, groupIdPara);
             let expoNotifications: ExpoPushMessage[] = [];
             if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara}`);
@@ -373,9 +374,9 @@ export const sendNewActivityNotification = onDocumentCreated(
             const activity = snap.data()
             const activityIdPara = event.params.activityId//[activityIdString]
             const groupIdPara = event.params.groupId//[groupIdString]
-            const db = admin.firestore();
+            const db = getFirestore();
             // Get users
-            const users: (admin.firestore.DocumentData | undefined)[] = await getFirebaseUsersOfGroup(db, groupIdPara);
+            const users: (DocumentData | undefined)[] = await getFirebaseUsersOfGroup(db, groupIdPara);
 
             if (!users || users.length === 0) throw new Error(`No users found for group with ID ${groupIdPara}`);
             let expoNotifications: ExpoPushMessage[] = [];
@@ -450,7 +451,7 @@ function publishExpoPushMessage(messages: ExpoPushMessage[]) {
 }
 
 
-function getFirebaseUsersOfGroup(db: admin.firestore.Firestore, groupId: string) {
+function getFirebaseUsersOfGroup(db: Firestore, groupId: string) {
     return db.doc(groupCollectionString + "/" + groupId)
         .get()
         .then((groupSnap) => {

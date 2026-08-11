@@ -1,6 +1,6 @@
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { ITimeInterval } from '@/assets/interfaces/ActivityInterface';
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, Text, TouchableHighlight, View } from 'react-native';
 import DayAndTimeSelection from './DayAndTimeSelection';
@@ -12,7 +12,12 @@ const AvailableTimesModal = ({modalVisible, actionByParent,setModalStateInParent
     const { theme } = useCustomTheme();
     const uiIcon = useUiIcons();
     const [selectedTimeSlot, setSelectedTimeSlot] = React.useState<ITimeInterval | undefined>(undefined);
-    const [timeSlotInputWarn, setTimeSlotInputWarn] = React.useState<string | undefined>(undefined);
+    const timeSlotInputWarn = useMemo(() => {
+      if (!selectedTimeSlot) return t("planning.warnNoTimeSlotSet");
+      if (new Date() > selectedTimeSlot.start) return t("planning.warnTimeInPast");
+      if (selectedTimeSlot.start >= selectedTimeSlot.end) return t("planning.warnStartBeforeEnd");
+      return undefined;
+    }, [selectedTimeSlot, t]);
 
     useEffect(() => {
         setTimeSlotModalVisible(modalVisible);
@@ -27,22 +32,6 @@ const AvailableTimesModal = ({modalVisible, actionByParent,setModalStateInParent
         setSelectedTimeSlot(undefined);
         setModalStateInParent(false)
     }
-  useEffect(() => {
-    timeSlotWarnings(selectedTimeSlot)
-  }, [selectedTimeSlot])
-
-    const timeSlotWarnings = (timeslot: ITimeInterval | undefined) => {
-      if (timeslot === undefined) {
-        setTimeSlotInputWarn(t("planning.warnNoTimeSlotSet"))
-      } else if (new Date() > timeslot.start) {
-        setTimeSlotInputWarn(t("planning.warnTimeInPast"))
-      } else if (timeslot.start != null && timeslot.end != null && timeslot.start >= timeslot.end) {
-        setTimeSlotInputWarn(t("planning.warnStartBeforeEnd"))
-      } else {
-        setTimeSlotInputWarn(undefined)
-      }
-    }
-
     const modalSubmitButton = ()=>{
         if(selectedTimeSlot){
             actionByParent(selectedTimeSlot)

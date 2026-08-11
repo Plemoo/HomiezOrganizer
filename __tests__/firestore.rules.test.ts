@@ -13,18 +13,28 @@ import {
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
+import fetch from 'cross-fetch';
 import fs from 'node:fs';
 import path from 'node:path';
 
+globalThis.fetch = fetch as typeof globalThis.fetch;
+
 const describeWithFirestore = process.env.FIRESTORE_EMULATOR_HOST ? describe : describe.skip;
+const [firestoreHost, firestorePort] = (process.env.FIRESTORE_EMULATOR_HOST ?? '').split(':');
 
 describeWithFirestore('Firestore security rules', () => {
   let testEnvironment: RulesTestEnvironment;
 
   beforeAll(async () => {
+    // jest-expo replaces fetch in the test process, which breaks the rules
+    // library's optional Emulator Hub discovery. The Firestore endpoint is
+    // already supplied explicitly below, so hub discovery is unnecessary.
+    delete process.env.FIREBASE_EMULATOR_HUB;
     testEnvironment = await initializeTestEnvironment({
       projectId: 'aktivitaeten-finder-rules-test',
       firestore: {
+        host: firestoreHost,
+        port: Number(firestorePort),
         rules: fs.readFileSync(path.resolve('functions/firestore.rules'), 'utf8'),
       },
     });

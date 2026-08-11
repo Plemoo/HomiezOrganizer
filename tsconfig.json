@@ -2,11 +2,12 @@
   "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
+    "types": [
+      "jest"
+    ],
     "paths": {
       "@/*": ["./*"]
-    },
-    "types": ["jest"],
-    "typeRoots": ["./node_modules/@types"]
+    }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
 }

@@ -90,7 +90,7 @@ const PersonalAvailability = () => {
                             </View>
                             <View style={{ flexGrow: 1 }}>
                                 <Text style={theme.typography.body}>{weekDays[item.day]}</Text>
-                                <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>
+                                <Text style={[theme.typography.body, { color: theme.colors.muted }]}>
                                     {t("common.time.duration", { begin: item.startHour + ":" + getFixedMinutes(item.startMinute), end: item.endHour + ":" + getFixedMinutes(item.endMinute) })}
                                 </Text>
                             </View>
@@ -118,7 +118,7 @@ const PersonalAvailability = () => {
                             </View>
                             <View style={{ flexGrow: 1 }}>
                                 <Text style={theme.typography.body}>{weekDays[item.day]}</Text>
-                                <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>
+                                <Text style={[theme.typography.body, { color: theme.colors.muted }]}>
                                     {t("common.time.duration", { begin: item.startHour + ":" + getFixedMinutes(item.startMinute), end: item.endHour + ":" + getFixedMinutes(item.endMinute) })}
                                 </Text>
                             </View>

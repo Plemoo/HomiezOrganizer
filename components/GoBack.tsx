@@ -29,8 +29,22 @@ const GoBack: React.FC<{ backTarget?: Href }> = ({ backTarget }) => {
         }
     }
     return (
-        <Pressable style={theme.leftCornerIcon} onPress={executeNavigation}>
-            <uiIcons.ArrowLeftIcon size={30} color={theme.colors.primary} />
+        <Pressable
+            accessibilityLabel="Zurück"
+            accessibilityRole="button"
+            hitSlop={10}
+            style={({ pressed }) => [theme.leftCornerIcon, {
+                width: 44,
+                height: 44,
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 22,
+                backgroundColor: theme.colors.secondary,
+                opacity: pressed ? 0.65 : 1,
+            }]}
+            onPress={executeNavigation}
+        >
+            <uiIcons.ArrowLeftIcon size={20} color={theme.colors.primary} />
         </Pressable>
     )
 }

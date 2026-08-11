@@ -1,4 +1,3 @@
-import useAvatarIcons from '@/assets/hooks/iconGatheringHook';
 import useUiIcons from '@/assets/hooks/uiIconHook';
 import { IFirebaseSearchParameter } from '@/assets/interfaces/FirebaseInterface';
 import { IGroup } from '@/assets/interfaces/GroupInterface';
@@ -23,7 +22,6 @@ const Groups = () => {
   const { user, userLoading } = useUser();
   const router = useRouter();
   const { theme } = useCustomTheme();
-  const { avatars } = useAvatarIcons();
   const [loading, setLoading] = useState(true);
   const [groupArray, setGroupArray] = useState<IGroup[] | undefined>(undefined);
   const { t } = useTranslation();
@@ -99,40 +97,56 @@ const Groups = () => {
 
   return (
     <ScrollView style={theme.containers.rootContainer} showsVerticalScrollIndicator={false}>
-      <Pressable style={theme.rightCornerIcon} onPress={() => router.push("/(tabs)/groups/NewGroup")}>
-        <uiIcons.PlusIcon size={30} color={theme.colors.primary} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("groups.newGroup")}
+        hitSlop={8}
+        style={({ pressed }) => [theme.rightCornerIcon, { width: 44, height: 44, borderRadius: 22, backgroundColor: theme.colors.primary, alignItems: "center", justifyContent: "center", opacity: pressed ? 0.7 : 1 }]}
+        onPress={() => router.push("/(tabs)/groups/NewGroup")}
+      >
+        <uiIcons.PlusIcon size={26} color={theme.colors.background} />
       </Pressable>
       <FlatList
         style={{ marginTop: theme.spacing.large }}
         data={groupArray}
         scrollEnabled={false}
-        keyExtractor={(item, index) => item.id + index}
+        keyExtractor={(item) => item.id}
         renderItem={({ item }) =>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.name}
+            style={({ pressed }) => ({
+              marginTop: theme.spacing.medium,
+              padding: theme.spacing.medium,
+              borderRadius: theme.borderRadius.medium,
+              borderWidth: 1,
+              borderColor: theme.colors.secondary,
+              opacity: pressed ? 0.65 : 1,
+            })}
             onPress={() => {
               let searchParams: IFirebaseSearchParameter = {
                 groupIdParameter: item.id
               }
               router.push({ pathname: "/(tabs)/groups/GroupDetail", params: searchParams as UnknownInputParams })
             }}>
-            <View style={{ flexDirection: "row", marginTop: theme.spacing.medium, justifyContent: "space-between" }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <View style={{ flexDirection: "row", gap: theme.spacing.large, width: "80%", flexGrow: 1 }}>
                 {/* <Image style={{ width: 40, height: 40 }} source={avatars[item.icon]} /> */}
                 <SvgXml xml={jdenticon.toSvg(item.name, 50)} width={50} height={50} />
                 <View style={{ flexDirection: "column", justifyContent: "center", flexShrink: 1 }}>
                   <Text style={theme.typography.heading3}>{item.name}</Text>
-                  <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>{item.memberUuids.length} {t("groups.groupMembers")}</Text>
+                  <Text style={[theme.typography.body, { color: theme.colors.muted }]}>{item.memberUuids.length} {t("groups.groupMembers")}</Text>
                 </View>
               </View>
               <View style={{ flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
                 {(item.ownerUuid ?? item.memberUuids[0]) !== user?.id && (
-                  <Pressable style={{ justifyContent: "center" }} onPress={() => showAlert({
+                  <Pressable style={{ justifyContent: "center" }} onPress={(event) => { event.stopPropagation(); showAlert({
                     title: t("groups.leaveGroupDialog.title"),
                     message: t("groups.leaveGroupDialog.leaveGroupText"),
                     cancelText: t("groups.leaveGroupDialog.cancel"),
                     confirmText: t("groups.leaveGroupDialog.yesIamSure"),
                     onConfirm: () => leaveGroup(item.id),
-                  })}>
+                  }) }}>
                     <uiIcons.RemoveUser size={30} color={theme.colors.primary} />
                   </Pressable>
                 )}

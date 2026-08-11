@@ -33,6 +33,7 @@ const Planning = () => {
   const uiIcon = useUiIcons();
   const router = useRouter();
   const { user } = useUser();
+  const groupIds = user?.groupUuids;
   const [selectedGroupId, setSelectedGroupId] = useState("")
   const { groupIdParameter }: IFirebaseSearchParameter = useLocalSearchParams();
 
@@ -65,8 +66,8 @@ const Planning = () => {
   }, [groupIdParameter]);
 
   const fetchUserGroups = useCallback((): Promise<IGroup[]> | null => {
-    if (user && user.groupUuids && user.groupUuids.length > 0) {
-      return FirebaseExchange.getFirebaseDocumentArray(user.groupUuids, "Group")
+    if (groupIds && groupIds.length > 0) {
+      return FirebaseExchange.getFirebaseDocumentArray(groupIds, "Group")
         .then((docArr) => {
           return docArr //
             .filter((doc) => doc.exists()) //
@@ -85,11 +86,11 @@ const Planning = () => {
       setUserGroups([]);
       return null;
     }
-  }, [JSON.stringify(user?.groupUuids)])
+  }, [groupIds])
 
   useEffect(() => {
     fetchUserGroups()
-  }, [fetchUserGroups, JSON.stringify(user?.groupUuids)])
+  }, [fetchUserGroups])
 
 
   const submitActivity = () => {

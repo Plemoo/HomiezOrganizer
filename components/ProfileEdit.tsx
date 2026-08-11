@@ -27,22 +27,26 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
   const uiIcons = useUiIcons();
   const { avatars } = useAvatarIcons();
   const [iconPickerModalOpen, setIconPickerModalOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const submitUserChanges = () => {
-    if (!username || !language || !userIcon || !user) {
+  const submitUserChanges = async () => {
+    const normalizedUsername = username?.trim();
+    if (!normalizedUsername || !language || !userIcon || !user || saving) {
       // Handle error or show a message to the user
       console.error("Username, language, or user icon is not set in ProfileEdit");
       return;
     }
-    let updatedUser: ILocalUser = { ...user, username: username, language: language, icon: userIcon, appearance: userAppearance || "light" }; // Default to light theme if not set
-    FirebaseExchange.updateFirebaseDocument(updatedUser, "User")
-    if (userAppearance === "light") {
-      setTheme(lightTheme)
-    } else {
-      setTheme(darkTheme)
+    setSaving(true);
+    const updatedUser: ILocalUser = { ...user, username: normalizedUsername, language, icon: userIcon, appearance: userAppearance || "light" };
+    try {
+      await FirebaseExchange.updateFirebaseDocument(updatedUser, "User")
+      setTheme(updatedUser.appearance === "light" ? lightTheme : darkTheme)
+      await changeLanguage(language);
+      returnToOverview(updatedUser)
+    } catch (error) {
+      console.error("Could not save profile changes:", error);
+      setSaving(false);
     }
-    changeLanguage(language); // Change the language in i18next
-    returnToOverview(updatedUser)
   }
 
   useEffect(() => {
@@ -79,6 +83,7 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
         <View style={[theme.input, { marginTop: theme.spacing.small }]}>
           <TextInput
             value={username}
+            maxLength={40}
             onChangeText={(text) => setUsername(text)}
             placeholder={t("settings.usernamePlaceholder")}
             style={theme.typography.body}
@@ -116,7 +121,7 @@ const ProfileEdit = ({ returnToOverview }: { returnToOverview: (para?: ILocalUse
       </View>
       {/* Edit Submit Button*/}
       <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-between", paddingBottom: 20 }}>
-        <TouchableHighlight style={[theme.button, { flex: 1 }]} underlayColor={theme.colors.secondary} onPress={submitUserChanges} disabled={!username || !language || !userIcon}>
+        <TouchableHighlight style={[theme.button, { flex: 1, opacity: !username?.trim() || !language || !userIcon || saving ? 0.45 : 1 }]} underlayColor={theme.colors.secondary} onPress={submitUserChanges} disabled={!username?.trim() || !language || !userIcon || saving}>
           <Text style={theme.buttonText}>{t("common.submit")}</Text>
         </TouchableHighlight>
       </View>

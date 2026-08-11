@@ -1,11 +1,14 @@
 import { useUser } from "@/components/ProfileInformationContext";
 import { useCustomTheme } from "@/components/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomTabNavigationOptions } from "@react-navigation/bottom-tabs";
-import { ParamListBase, RouteProp } from "@react-navigation/native";
 import { Tabs } from "expo-router";
 import { TFunction } from "i18next";
+import type { ComponentProps } from "react";
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
+
+type TabScreenOptions = Exclude<ComponentProps<typeof Tabs.Screen>["options"], Function | undefined>;
+
 enum TAB_NAMES {
   GROUPS = "groups",
   PLANNING = "planning",
@@ -18,11 +21,20 @@ export default function TabLayout() {
   const { theme } = useCustomTheme();
 
   return (
-    <Tabs screenOptions={{
-      tabBarActiveTintColor: theme.colors.text,
-      tabBarInactiveBackgroundColor: theme.colors.background,
+    <Tabs safeAreaInsets={{ bottom: 0 }} screenOptions={{
+      tabBarActiveTintColor: theme.colors.primary,
+      tabBarInactiveTintColor: theme.colors.text,
       headerShown: false,
-      tabBarStyle: { backgroundColor: theme.colors.background, borderTopColor: theme.colors.text, borderTopWidth: 0.5 },
+      tabBarHideOnKeyboard: false,
+      tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginTop: 2 },
+      tabBarItemStyle: { paddingVertical: 6 },
+      tabBarStyle: {
+        height: 68,
+        backgroundColor: theme.colors.background,
+        borderTopColor: theme.colors.secondary,
+        borderTopWidth: 1,
+        elevation: 0,
+      },
     }}>
       <Tabs.Screen name={TAB_NAMES.GROUPS} options={({ route }) => defineTabOptions(route, t)} />
       <Tabs.Screen name={TAB_NAMES.PLANNING} options={({ route }) => defineTabOptions(route, t)} />
@@ -32,7 +44,7 @@ export default function TabLayout() {
   )
 }
 
-function defineTabOptions(route: RouteProp<ParamListBase, string>, t: TFunction, customOptions?: BottomTabNavigationOptions): BottomTabNavigationOptions {
+function defineTabOptions(route: { name: string }, t: TFunction, customOptions?: TabScreenOptions): TabScreenOptions {
   let title;
   let iconName: keyof typeof Ionicons.glyphMap;
   let iconNameOutline: keyof typeof Ionicons.glyphMap;
@@ -64,7 +76,18 @@ function defineTabOptions(route: RouteProp<ParamListBase, string>, t: TFunction,
   }
   return {
     title: title,
-    tabBarIcon: ({ color, focused, size }) => focused ? <Ionicons name={iconName} size={size} color={color} /> : <Ionicons name={iconNameOutline} size={size} color={color} />,
+    tabBarIcon: ({ color, focused }) => (
+      <View style={{
+        width: 42,
+        height: 30,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 15,
+        backgroundColor: focused ? color : "transparent",
+      }}>
+        <Ionicons name={focused ? iconName : iconNameOutline} size={21} color={focused ? "#FFFFFF" : color} />
+      </View>
+    ),
     ...customOptions
   }
 }

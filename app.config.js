@@ -1,4 +1,4 @@
-const { withPlugins, withAndroidManifest } = require('@expo/config-plugins');
+const { withPlugins, withAndroidManifest } = require('expo/config-plugins');
 
 const hostingDomain = 'homiesorganizer.web.app';
 
@@ -37,6 +37,7 @@ module.exports = ({ config }) => withPlugins(
     ...config,
     android: {
       ...config.android,
+      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? config.android?.googleServicesFile,
       intentFilters: [
         ...(config.android?.intentFilters || []),
         {

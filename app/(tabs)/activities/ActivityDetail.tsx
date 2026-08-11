@@ -108,7 +108,7 @@ const ActivityDetail = () => {
       })
     }
     return () => unsubscribe?.();
-  }, [activityIdParameter, groupIdParameter, userLoading])
+  }, [activityIdParameter, groupIdParameter, userLoading, user, router])
 
 
   const addOrRemoveUserFromTimeSlot = (item: ITimeSlot) => {

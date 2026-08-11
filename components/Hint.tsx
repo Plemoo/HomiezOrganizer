@@ -45,7 +45,7 @@ export function Hint({
         ]).start(() => {
             onHide?.()
         })
-    }, [opacity])
+    }, [duration, fadeDuration, onHide, opacity])
 
     return (
         <Animated.View
@@ -53,10 +53,10 @@ export function Hint({
             style={[
                 styles.container,
                 style,
-                { opacity }
+                { opacity, backgroundColor: theme.colors.primary }
             ]}
         >
-            <Text style={textStyle}>{message}</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.background, textAlign: 'center' }, textStyle]}>{message}</Text>
         </Animated.View>
     )
 }

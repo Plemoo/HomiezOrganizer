@@ -3,7 +3,6 @@ import { IActivityState } from '@/assets/interfaces/ActivityInterface';
 import { IComment, IDbComment } from '@/assets/interfaces/CommentInterface';
 import { FirebaseExchange } from '@/assets/ts/firebaseExchange';
 import { FirebaseSnapshotListener } from '@/assets/ts/firebaseSnapshotListener';
-import { parseFirebaseComment } from '@/assets/ts/parsing';
 import { formatDateAndTimeSmall } from '@/assets/ts/timeManagement';
 import { Timestamp } from '@react-native-firebase/firestore';
 import i18next from 'i18next';
@@ -52,7 +51,7 @@ const ActivityComments = ({ activityId, groupId, activityState }: { activityId: 
             }
         });
         return () => newCommentUnsub();
-    }, [])
+    }, [activityId, groupId])
 
     useEffect(() => {
         if (Array.isArray(comments)) {
@@ -61,19 +60,6 @@ const ActivityComments = ({ activityId, groupId, activityState }: { activityId: 
             setIsLoading(true)
         }
     }, [comments])
-
-    const fetchAllCommentsForActivity = (): Promise<IComment[]> => {
-        return FirebaseExchange.getAllDocumentsOfCollection("Group", groupId, "Activity", activityId, "Comment")
-            .then((commentDocuments) => {
-                if (!commentDocuments.empty) {
-                    let commentsOfActivity: IComment[] = commentDocuments.docs.
-                        map((commentDoc) => parseFirebaseComment(commentDoc))
-                        .filter((comment) => comment !== null);
-                    return commentsOfActivity;
-                }
-                return [];
-            })
-    }
 
     if (isLoading) return <LoadingDots visible />;
 

@@ -3,39 +3,40 @@ import { ITheme, IThemeColors, IThemeInput, IThemeSpacing, IThemeTypography } fr
 
 // Create the Theme Context
 const lightThemeColors: IThemeColors = {
-    background: '#FFFFFF', // lightest
-    text: '#100C08', // darkest
-    textLight: "#fffafa", // 2nd lightest (Snow White)
-    primary: '#434546', // 2nd Darkest (Smoky Black)
-    secondary: '#E3DFDA', // in the middle
-    error:"red",
-    okay: "green"
+    background: '#FFFFFF',
+    text: '#0A0A0A',
+    textLight: '#FFFFFF',
+    primary: '#0A0A0A',
+    secondary: '#E8E8E8',
+    muted: '#666666',
+    error: '#B42318',
+    okay: '#137333'
 }
 
 const lightThemeBorderRadius = {
-    small: 5,
-    medium: 10,
+    small: 8,
+    medium: 14,
     large: 20,
-    xlarge: 25
+    xlarge: 28
 }
 
 const lightThemeTypography: IThemeTypography = {
     heading1: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        lineHeight: 36,
+        fontSize: 32,
+        fontWeight: '700',
+        lineHeight: 38,
         color: lightThemeColors.text
     },
     heading2: {
-        fontSize: 24,
-        fontWeight: '600',
-        lineHeight: 32,
+        fontSize: 22,
+        fontWeight: '700',
+        lineHeight: 28,
         color: lightThemeColors.text
     },
     heading3: {
-        fontSize: 20,
-        fontWeight: 'normal',
-        lineHeight: 28,
+        fontSize: 17,
+        fontWeight: '600',
+        lineHeight: 24,
         color: lightThemeColors.text
     },
     body: {
@@ -55,9 +56,13 @@ const lightThemeSpacing: IThemeSpacing = {
     xlarge: 32,
 }
 const lightThemeInput: IThemeInput = {
-    backgroundColor: lightThemeColors.secondary,
-    borderRadius: lightThemeBorderRadius.large,
-    paddingLeft: lightThemeSpacing.small
+    backgroundColor: lightThemeColors.background,
+    borderRadius: lightThemeBorderRadius.medium,
+    borderColor: lightThemeColors.secondary,
+    borderWidth: 1,
+    minHeight: 48,
+    paddingHorizontal: lightThemeSpacing.medium,
+    paddingVertical: lightThemeSpacing.small
 }
 
 // Define your themes
@@ -68,7 +73,9 @@ export const lightTheme: ITheme = {
         backgroundColor: lightThemeColors.primary,
         borderRadius: lightThemeBorderRadius.xlarge,
         padding: lightThemeSpacing.medium,
-        alignItems: "center"
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 52
     },
     buttonText: {
         ...lightThemeTypography.body,
@@ -81,7 +88,7 @@ export const lightTheme: ITheme = {
         rootContainer: {
             flex: 1,
             backgroundColor: lightThemeColors.background,
-            padding: lightThemeSpacing.small
+            padding: lightThemeSpacing.medium
         },
         leftAlignedContainer: {
             flex: 1,
@@ -104,8 +111,8 @@ export const lightTheme: ITheme = {
             backgroundColor: 'rgba(0,0,0,0.4)',
         },
         modalBoxContainer:{
-            width: '80%',
-            backgroundColor: lightThemeColors.textLight,
+            width: '88%',
+            backgroundColor: lightThemeColors.background,
             borderRadius: lightThemeBorderRadius.large,
             padding: lightThemeSpacing.medium
         }

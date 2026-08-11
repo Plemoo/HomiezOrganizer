@@ -1,5 +1,5 @@
 
-import { onAuthStateChanged, signInAnonymously } from '@react-native-firebase/auth';
+import { getIdToken, onAuthStateChanged, signInAnonymously, signOut } from '@react-native-firebase/auth';
 import { addDoc, arrayRemove, arrayUnion, collection, doc, FirebaseFirestoreTypes, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from '@react-native-firebase/firestore';
 import { httpsCallable } from '@react-native-firebase/functions';
 import { IActivity, IDbActivity } from "../interfaces/ActivityInterface";
@@ -274,13 +274,41 @@ export class FirebaseExchange {
 
   static getFirebaseUserUid(): Promise<string> {
     return new Promise((resolve, reject) => {
-      onAuthStateChanged(authInst, user => {
-        if (user && user.uid) {
-          resolve(user.uid);
-        } else {
-          signInAnonymously(authInst)
-            .then(result => resolve(result.user.uid))
-            .catch(reject);
+      let handled = false;
+      let unsubscribe: (() => void) | undefined;
+
+      unsubscribe = onAuthStateChanged(authInst, async user => {
+        if (handled) return;
+        handled = true;
+
+        try {
+          if (user?.uid) {
+            try {
+              // A persisted anonymous user can become invalid when the local
+              // Auth emulator is restarted without importing its previous data.
+              await getIdToken(user, true);
+              resolve(user.uid);
+              return;
+            } catch (error) {
+              const firebaseError = error as {code?: string; message?: string};
+              const staleEmulatorToken =
+                firebaseError.code === "auth/invalid-user-token" ||
+                firebaseError.code === "auth/user-token-expired" ||
+                firebaseError.message?.includes("INVALID_REFRESH_TOKEN");
+
+              if (!__DEV__ || !staleEmulatorToken) throw error;
+
+              console.warn("Local Auth emulator was reset; signing in anonymously again.");
+              await signOut(authInst);
+            }
+          }
+
+          const result = await signInAnonymously(authInst);
+          resolve(result.user.uid);
+        } catch (error) {
+          reject(error);
+        } finally {
+          unsubscribe?.();
         }
       });
     });

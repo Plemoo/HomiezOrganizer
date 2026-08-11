@@ -2,39 +2,40 @@ import { ITheme, IThemeColors, IThemeInput, IThemeSpacing, IThemeTypography } fr
 // Dark theme properties
 
 const darkThemeColors: IThemeColors = {
-    background: '#100C08', // lightest
-    text: '#FFFFFF', // darkest
-    textLight: "#434546", // 2nd lightest
-    primary: '#fffafa', // 2nd darkest
-    secondary: '#BFBFBF', // in the middle
+    background: '#080808',
+    text: '#FFFFFF',
+    textLight: '#080808',
+    primary: '#FFFFFF',
+    secondary: '#303030',
+    muted: '#B8B8B8',
     error: "#ff6b6b", // red
     okay: "#4caf50" // green
 }
 
 const darkThemeBorderRadius = {
-    small: 5,
-    medium: 10,
+    small: 8,
+    medium: 14,
     large: 20,
-    xlarge: 25
+    xlarge: 28
 }
 
 const darkThemeTypography: IThemeTypography = {
     heading1: {
-        fontSize: 30,
-        fontWeight: 'bold',
-        lineHeight: 36,
+        fontSize: 32,
+        fontWeight: '700',
+        lineHeight: 38,
         color: darkThemeColors.text
     },
     heading2: {
-        fontSize: 24,
-        fontWeight: '600',
-        lineHeight: 32,
+        fontSize: 22,
+        fontWeight: '700',
+        lineHeight: 28,
         color: darkThemeColors.text
     },
     heading3: {
-        fontSize: 20,
-        fontWeight: 'normal',
-        lineHeight: 28,
+        fontSize: 17,
+        fontWeight: '600',
+        lineHeight: 24,
         color: darkThemeColors.text
     },
     body: {
@@ -53,9 +54,13 @@ const darkThemeSpacing: IThemeSpacing = {
 }
 
 const darkThemeInput: IThemeInput = {
-    backgroundColor: darkThemeColors.secondary,
-    borderRadius: darkThemeBorderRadius.large,
-    paddingLeft: darkThemeSpacing.small
+    backgroundColor: darkThemeColors.background,
+    borderRadius: darkThemeBorderRadius.medium,
+    borderColor: darkThemeColors.secondary,
+    borderWidth: 1,
+    minHeight: 48,
+    paddingHorizontal: darkThemeSpacing.medium,
+    paddingVertical: darkThemeSpacing.small
 }
 
 export const darkTheme: ITheme = {
@@ -65,7 +70,9 @@ export const darkTheme: ITheme = {
         backgroundColor: darkThemeColors.primary,
         borderRadius: darkThemeBorderRadius.xlarge,
         padding: darkThemeSpacing.medium,
-        alignItems: "center"
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 52
     },
     buttonText: {
         ...darkThemeTypography.body,
@@ -77,7 +84,7 @@ export const darkTheme: ITheme = {
         rootContainer: {
             flex: 1,
             backgroundColor: darkThemeColors.background,
-            padding: darkThemeSpacing.small
+            padding: darkThemeSpacing.medium
         },
         leftAlignedContainer: {
             flex: 1,
@@ -100,8 +107,8 @@ export const darkTheme: ITheme = {
             backgroundColor: 'rgba(0,0,0,0.7)',
         },
         modalBoxContainer: {
-            width: '80%',
-            backgroundColor: darkThemeColors.textLight,
+            width: '88%',
+            backgroundColor: darkThemeColors.background,
             borderRadius: darkThemeBorderRadius.large,
             padding: darkThemeSpacing.medium
         }

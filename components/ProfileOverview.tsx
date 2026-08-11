@@ -57,7 +57,7 @@ const ProfileOverview = ({ goToEdit }: { goToEdit: () => void }) => {
         <TouchableHighlight onPress={goToEdit} underlayColor={theme.colors.secondary} style={{ borderRadius: theme.borderRadius.medium }}>
           <View style={{ flexDirection: "row" }}>
             <uiIcons.EditIcon size={24} color={theme.colors.secondary} />
-            <Text style={[theme.typography.body, { color: theme.colors.secondary }]}>{t("settings.editProfile")}</Text>
+            <Text style={[theme.typography.body, { color: theme.colors.muted }]}>{t("settings.editProfile")}</Text>
           </View>
         </TouchableHighlight>
       </View>

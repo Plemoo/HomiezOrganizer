@@ -2,7 +2,7 @@ import { ITimeInterval } from '@/assets/interfaces/ActivityInterface';
 import { dayjs, formatDateForRnCalendar } from '@/assets/ts/timeManagement';
 import WheelPicker from '@quidone/react-native-wheel-picker';
 import i18next from 'i18next';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -55,6 +55,10 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
     const [markedDates, setMarkedDates] = useState<MarkedDates | undefined>();
     const [loading, setLoading] = useState(true)
     const { t } = useTranslation();
+    const onDateSelectRef = useRef(onDateSelect);
+    useEffect(() => {
+        onDateSelectRef.current = onDateSelect;
+    }, [onDateSelect]);
     const getMinutesArr = () => {
         const result = [];
         for (let i = 0; i < 60; i += 5) { // nur bis 55
@@ -75,7 +79,7 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
             }
             endDate = endDate.set('minute', minutesEnd);
             endDate = endDate.set('hour', hoursEnd);
-            onDateSelect({ start: startDate.toDate(), end: endDate.toDate() });
+            onDateSelectRef.current({ start: startDate.toDate(), end: endDate.toDate() });
         }
     }, [selectedDateStart, hoursStart, minutesStart, selectedDateEnd, hoursEnd, minutesEnd]);
 
@@ -86,7 +90,7 @@ const DayAndTimeSelection: React.FC<IDayAndTimeSelection> = ({ onDateSelect }) =
         return () => {
             clearTimeout(timeout)
         }
-    })
+    }, [])
 
     function roundToNext5(minutes: number) {
         const remainder = minutes % 5;

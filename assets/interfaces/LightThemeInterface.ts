@@ -54,7 +54,11 @@ export interface IThemeBorderRadius {
 export interface IThemeInput {
     backgroundColor: string;
     borderRadius: number;
-    paddingLeft: number;
+    borderColor: string;
+    borderWidth: number;
+    minHeight: number;
+    paddingHorizontal: number;
+    paddingVertical: number;
 }
 
 export interface IThemeSpacing {
@@ -91,6 +95,8 @@ interface IThemeButton {
     borderRadius: number;
     padding: number;
     alignItems: ViewStyle["alignItems"];
+    justifyContent: ViewStyle["justifyContent"];
+    minHeight: number;
 }
 
 interface IThemeButtonText extends IText {
@@ -111,6 +117,7 @@ export interface IThemeColors {
     textLight: string;
     primary: string;
     secondary: string;
+    muted: string;
     okay: string;
     error: string
 }

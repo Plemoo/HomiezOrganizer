@@ -19,13 +19,7 @@
   "emulators": {
     "firestore": {
       "host": "0.0.0.0",
-      "port": 8080,
-      "import": [
-        "emulator-data"
-      ],
-      "exportOnExit": [
-        "emulator-data"
-      ]
+      "port": 8080
     },
     "functions": {
       "host": "0.0.0.0",
@@ -37,13 +31,7 @@
     },
     "auth": {
       "host": "0.0.0.0",
-      "port": 9099,
-      "import": [
-        "emulator-data"
-      ],
-      "exportOnExit": [
-        "emulator-data"
-      ]
+      "port": 9099
     },
     "singleProjectMode": true
   },

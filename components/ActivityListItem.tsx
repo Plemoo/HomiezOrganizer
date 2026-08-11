@@ -4,6 +4,7 @@ import { formatDateAndTimeSmall } from '@/assets/ts/timeManagement';
 import { UnknownInputParams, useRouter } from 'expo-router';
 import i18next from 'i18next';
 import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 import { useCustomTheme } from './ThemeContext';
 
@@ -28,22 +29,37 @@ const ActivityListItem = ({ activityIcon, activity, groupIcon }: { activityIcon:
     }
 
     return (
-        <Pressable onPress={activityPressed} style={{ flexDirection: "row", marginVertical: theme.spacing.small, gap: theme.spacing.small }}>
-            <View style={{ justifyContent: "center" }}>
+        <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={activity.name}
+            onPress={activityPressed}
+            style={({ pressed }) => ({
+                flexDirection: "row",
+                alignItems: "center",
+                marginVertical: theme.spacing.small,
+                gap: theme.spacing.medium,
+                padding: theme.spacing.medium,
+                borderWidth: 1,
+                borderColor: theme.colors.secondary,
+                borderRadius: theme.borderRadius.medium,
+                backgroundColor: theme.colors.background,
+                opacity: pressed ? 0.65 : 1,
+            })}
+        >
+            <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: theme.colors.secondary }}>
                 {activityIcon}
             </View>
-            <View style={{ flexGrow: 1, width: "60%" }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", backgroundColor: theme.colors.background }}>
-                    <Text style={[theme.typography.body, { textAlign: "center" }]}>{activity.name}</Text>
-                </View>
-                <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+            <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={theme.typography.heading3}>{activity.name}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
                     {activity.time ? timeCmp(activity.time) : null}
                 </View>
             </View>
-            <View style={{ justifyContent: "center" }}>
-                <Text style={[theme.typography.body, { textAlign: "center" }]}>{activity.memberUuids ? activity.memberUuids.length : getNumberOfUniqueUsersOfTimeSlots(activity.timeSlotsPerUserUuid)}/{activity.minParticipants}</Text>
+            <View style={{ alignItems: "center", gap: 2 }}>
+                <Ionicons name="people-outline" size={17} color={theme.colors.primary} />
+                <Text style={[theme.typography.body, { fontSize: 13 }]}>{activity.memberUuids ? activity.memberUuids.length : getNumberOfUniqueUsersOfTimeSlots(activity.timeSlotsPerUserUuid)}/{activity.minParticipants}</Text>
             </View>
-            <View>
+            <View style={{ width: 34, height: 34 }}>
                 {groupIcon}
             </View>
         </Pressable>

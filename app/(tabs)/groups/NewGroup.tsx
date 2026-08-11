@@ -11,35 +11,42 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dimensions, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableHighlight, View } from 'react-native';
 import { SvgXml } from 'react-native-svg';
-const { width, height } = Dimensions.get("window");
+const { height } = Dimensions.get("window");
 
 const NewGroup = () => {
-  const { getRandomAvatarKey, avatars } = useAvatarIcons();
+  const { getRandomAvatarKey } = useAvatarIcons();
   const { user } = useUser();
   const router = useRouter();
   const { theme } = useCustomTheme();
   const { t } = useTranslation();
   const [groupName, setGroupName] = useState("")
   const [groupDescription, setGroupDescription] = useState("")
-  const [groupIcon, setGroupIcon] = useState(getRandomAvatarKey());
+  const [groupIcon] = useState(getRandomAvatarKey);
+  const [submitting, setSubmitting] = useState(false);
   const uiIcons = useUiIcons();
 
 
-  const submitNewGroup = () => {
-    if (!user) {
+  const submitNewGroup = async () => {
+    const normalizedName = groupName.trim();
+    if (!user || !normalizedName || submitting) {
       console.error("User is not set in NewGroup");
       return;
     }
+    setSubmitting(true);
     let newGroup: IDbGroup = {
-      name: groupName,
-      description: groupDescription,
+      name: normalizedName,
+      description: groupDescription.trim(),
       memberUuids: [user.id],
       ownerUuid: user.id,
       icon: groupIcon
     }
-    FirebaseExchange.createGroup(newGroup)
-      .then(() => router.replace("/(tabs)/groups/Groups"))
-      .catch((err) => console.error("Error creating new group:", err));
+    try {
+      await FirebaseExchange.createGroup(newGroup);
+      router.replace("/(tabs)/groups/Groups");
+    } catch (err) {
+      console.error("Error creating new group:", err);
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -74,17 +81,17 @@ const NewGroup = () => {
           <View style={{ marginVertical: theme.spacing.large }}>
             <Text style={[theme.typography.heading2, { marginBottom: theme.spacing.small }]}>{t("groups.groupName")}</Text>
             <View style={theme.input}>
-              <TextInput placeholder={t("groups.groupNameInput")} value={groupName} style={[theme.typography.body]} onChangeText={(val) => setGroupName(val)} />
+              <TextInput autoCapitalize="sentences" maxLength={80} placeholder={t("groups.groupNameInput")} placeholderTextColor={theme.colors.muted} value={groupName} style={[theme.typography.body]} onChangeText={setGroupName} />
             </View>
           </View>
           {/* Gruppenbeschreibung */}
           <View style={{ marginVertical: theme.spacing.large }}>
             <Text style={[theme.typography.heading2, { marginBottom: theme.spacing.small }]}>{t("groups.groupDescription")}</Text>
             <View style={theme.input}>
-              <TextInput multiline numberOfLines={4} placeholder={t("groups.groupDescriptionInput")} value={groupDescription} style={[theme.typography.body, { minHeight: 24 * 4, textAlignVertical: "top" }]} onChangeText={(val) => setGroupDescription(val)} />
+              <TextInput multiline maxLength={500} numberOfLines={4} placeholder={t("groups.groupDescriptionInput")} placeholderTextColor={theme.colors.muted} value={groupDescription} style={[theme.typography.body, { minHeight: 24 * 4, textAlignVertical: "top" }]} onChangeText={setGroupDescription} />
             </View>
           </View>
-          <TouchableHighlight style={theme.button} underlayColor={theme.colors.secondary} onPress={submitNewGroup}>
+          <TouchableHighlight style={[theme.button, { opacity: !groupName.trim() || submitting ? 0.45 : 1 }]} underlayColor={theme.colors.secondary} onPress={submitNewGroup} disabled={!groupName.trim() || submitting}>
             <Text style={theme.buttonText}>{t("common.submit")}</Text>
           </TouchableHighlight>
         </ScrollView>

@@ -65,7 +65,7 @@ export class FirebaseSnapshotListener {
       const activityCollection = FirebaseExchange.getFirebaseCollection("Group", groupId, "Activity");
       return onSnapshot(activityCollection, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-          if (change.type === "added") {
+          if (change.type === "added" || change.type === "modified") {
             let newActivity = parseFirebaseActivity(change.doc);
             if (!newActivity) return null
             FirebaseExchange.getFirebaseDocument(newActivity.owningGroupId, "Group")
