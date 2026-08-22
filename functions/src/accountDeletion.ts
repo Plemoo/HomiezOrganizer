@@ -1,4 +1,6 @@
-import { DocumentData } from "firebase-admin/firestore";
+// Keep this planning logic independent of the Firebase Admin SDK so it can be
+// type-checked and unit-tested without installing the Functions dependencies.
+type DocumentData = Record<string, unknown>;
 
 export type GroupDeletionPlan =
     {deleteGroup: true} |

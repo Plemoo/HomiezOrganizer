@@ -16,10 +16,16 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
+      - name: Install Functions dependencies
+        run: npm --prefix functions ci
       - name: Lint
         run: npm run lint
+      - name: Lint Functions
+        run: npm --prefix functions run lint
       - name: Type-check
         run: npx tsc --noEmit
+      - name: Build Functions
+        run: npm --prefix functions run build
       - name: Test
         run: npm test -- --runInBand
 
