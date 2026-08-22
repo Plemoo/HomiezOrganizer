@@ -40,6 +40,17 @@ export class FirebaseExchange {
     )({ groupId });
   }
 
+  static deleteAccount() {
+    return httpsCallable<void, { deleted: boolean }>(
+      firestoreCloudFunctions,
+      "deleteAccount"
+    )();
+  }
+
+  static signOut() {
+    return signOut(authInst);
+  }
+
   /**
    * CARE: ADDS WITH FIREBASE GENERATED ID. Adds a new document to a Firestore collection.
    * @param collectionName The name of the collection to add the document to.

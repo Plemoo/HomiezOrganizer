@@ -5,12 +5,29 @@ import * as SecureStore from 'expo-secure-store';
 // Mock the expo-secure-store module
 jest.mock('expo-secure-store', () => ({
     setItemAsync: jest.fn().mockResolvedValue(undefined),
-    getItemAsync: jest.fn()
+    getItemAsync: jest.fn(),
+    deleteItemAsync: jest.fn().mockResolvedValue(undefined)
 }));
 let times: IBusyAvailableTimes[] = [{ day: 1, endHour: 1, endMinute: 1, startHour: 1, startMinute: 1 }]
 let newTimes: IBusyAvailableTimes[] = [{ day: 2, endHour: 2, endMinute: 2, startHour: 2, startMinute: 2 }]
 
 const allLocalStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language"];
+
+describe("clearUserFromSecureStore", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test("deletes every locally stored user field", async () => {
+        await SecureStorageHandler.clearUserFromSecureStore();
+
+        expect(SecureStore.deleteItemAsync).toHaveBeenCalledTimes(10);
+        expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("id");
+        expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("groupUuids");
+        expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("expoPushToken");
+        expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("appearance");
+    });
+});
 describe("overwriteSecureStoreTestable: SecureStore Overwrites", () => {
     describe("SecureStore KeyValue String Overwrite Correct", () => {
         beforeEach(() => {

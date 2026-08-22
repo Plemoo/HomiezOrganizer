@@ -1,4 +1,4 @@
-# Aktivitäten Finder
+# Aktivitäten planen
 
 Eine Expo-App zur gemeinsamen Planung von Gruppenaktivitäten.
 
@@ -69,6 +69,27 @@ ergänzen:
 
 ```bash
 eas credentials --platform android
+```
+
+## Datenschutzseiten über Firebase Hosting
+
+Firebase Hosting veröffentlicht den Inhalt des Ordners `public/`. Dazu gehören:
+
+- `https://homiesorganizer.web.app/privacyPolicy.html`
+- `https://homiesorganizer.web.app/delete-account.html`
+
+Vor der ersten Veröffentlichung müssen in `public/privacyPolicy.html` die drei
+Platzhalter für Name und Anschrift des Verantwortlichen ersetzt werden. Eine
+Pre-Deploy-Prüfung verhindert die Veröffentlichung, solange sie vorhanden sind.
+
+Eine bewusste Veröffentlichung mit noch unvollständigen Pflichtangaben ist über
+die Umgebungsvariable `ALLOW_INCOMPLETE_LEGAL_DETAILS=true` möglich. Die Seite
+bleibt in diesem Fall rechtlich unvollständig und zeigt den entsprechenden Hinweis.
+
+Veröffentlicht werden die Seiten mit:
+
+```bash
+firebase deploy --only hosting
 ```
 
 Danach wird ein Release zum Beispiel so ausgelöst:

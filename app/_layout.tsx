@@ -1,9 +1,11 @@
 import { AlertProvider } from "@/components/AlertContext";
 import { NotificationsProvider } from "@/components/NotificationContext";
-import { UserProvider } from "@/components/ProfileInformationContext";
-import { ThemeProvider } from "@/components/ThemeContext";
+import { UserProvider, useUser } from "@/components/ProfileInformationContext";
+import { ThemeProvider, useCustomTheme } from "@/components/ThemeContext";
+import LoadingDots from "@/components/Loading";
 import { Stack } from "expo-router";
-import { I18nextProvider } from "react-i18next";
+import { I18nextProvider, useTranslation } from "react-i18next";
+import { Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import i18n from "../assets/ts/i18next";
 
@@ -51,16 +53,42 @@ export default function RootLayout() {
           <SafeAreaView style={{ flex: 1 }}>
             <I18nextProvider i18n={i18n}>
               <AlertProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="Join" />
-                  <Stack.Screen name="(tabs)" />
-                </Stack>
+                <RootContent />
               </AlertProvider>
             </I18nextProvider>
           </SafeAreaView>
         </ThemeProvider>
       </NotificationsProvider>
     </UserProvider >
+  );
+}
+
+function RootContent() {
+  const { accountDeleted, createNewAccount, userLoading } = useUser();
+  const { theme } = useCustomTheme();
+  const { t } = useTranslation();
+
+  if (accountDeleted) {
+    return (
+      <View style={[theme.containers.rootContainer, theme.containers.centeredContainer, { gap: theme.spacing.large }]}>
+        <Text style={[theme.typography.heading1, { textAlign: "center" }]}>{t("settings.accountDeletedTitle")}</Text>
+        <Text style={[theme.typography.body, { textAlign: "center" }]}>{t("settings.accountDeletedMessage")}</Text>
+        {userLoading ? (
+          <LoadingDots visible />
+        ) : (
+          <Pressable style={theme.button} onPress={() => void createNewAccount()}>
+            <Text style={theme.buttonText}>{t("settings.createNewAccount")}</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="Join" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
   );
 }

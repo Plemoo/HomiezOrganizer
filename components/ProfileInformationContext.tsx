@@ -13,7 +13,10 @@ interface UserContextType {
   // setUser: React.Dispatch<React.SetStateAction<ILocalUser>>;
   // setUserIncludingLocalStorageAndFirebase: (userData: ILocalUser) => Promise<void | [(keyof ILocalUser)[], void]>;
   // makeSureUserIsLoggedIn: (userData: ILocalUser) => Promise<ILocalUser>;
-  userLoading: boolean
+  userLoading: boolean;
+  accountDeleted: boolean;
+  deleteAccount: () => Promise<void>;
+  createNewAccount: () => Promise<void>;
 }
 
 const UserContext = createContext<UserContextType | null>(null);
@@ -27,6 +30,9 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { getRandomAvatarKey } = useAvatarIcons()
   const [user, setUser] = useState<ILocalUser | undefined>();
   const [loading, setLoading] = useState<boolean>(true);
+  const [accountDeleted, setAccountDeleted] = useState(false);
+  const unsubscribeRef = useRef<Unsubscribe | null>(null);
+  const deletionInProgressRef = useRef(false);
 
   const [initRandomUserIcon] = useState(() => getRandomAvatarKey())
   const [userLanguage] = useState<"de" | "en">(() => getDefaultLanguage() === "de" ? "de" : "en")
@@ -35,7 +41,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   useEffect(() => {
-    let unsubscribe: Unsubscribe | null = null;
     let cancelled = false;
     setLoading(true);
     setupUserOnStartupRef.current()
@@ -44,7 +49,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           unsub();
           return;
         }
-        unsubscribe = unsub;
+        unsubscribeRef.current = unsub;
       }).catch((error) => {
         console.error("Error setting up user on startup in ProfileInformationContext:", error);
       }).finally(() => {
@@ -52,7 +57,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     return () => {
       cancelled = true;
-      if (unsubscribe) unsubscribe();
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
     }
   }, []);
 
@@ -80,7 +86,10 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Existiert ein Firebase User, wird der SecureStore mit den Einträgen des Firebase Users überschrieben
       return FirebaseSnapshotListener.snapshotListenerForUserChange(firebaseUserId, async (userWithChanges) => {
         // Firebase User HAS to exist, because it is created new in lines before + when user doesnt exist, a read is not allowed -> no Permisison exception
-        if (!userWithChanges) throw new Error("User with changes is null or undefined in ProfileInformationContext (Should not happen, since not defined users result in no-permission)");
+        if (!userWithChanges) {
+          if (!deletionInProgressRef.current) console.warn("User document no longer exists.");
+          return;
+        }
         const expoPushToken = await getExpoPushTokenSafely();
         if(expoPushToken && userWithChanges.expoPushToken !== expoPushToken){
           userWithChanges.expoPushToken = expoPushToken;
@@ -109,8 +118,37 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }
 
+  async function deleteAccount(): Promise<void> {
+    deletionInProgressRef.current = true;
+    setLoading(true);
+    try {
+      await FirebaseExchange.deleteAccount();
+      unsubscribeRef.current?.();
+      unsubscribeRef.current = null;
+      await SecureStorageHandler.clearUserFromSecureStore()
+        .catch((error) => console.warn("Could not clear all local data after account deletion:", error));
+      await FirebaseExchange.signOut().catch((error) => console.warn("Could not sign out deleted account locally:", error));
+      setUser(undefined);
+      setAccountDeleted(true);
+    } finally {
+      deletionInProgressRef.current = false;
+      setLoading(false);
+    }
+  }
+
+  async function createNewAccount(): Promise<void> {
+    setLoading(true);
+    try {
+      const unsubscribe = await setupUserOnStartup();
+      unsubscribeRef.current = unsubscribe;
+      setAccountDeleted(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <UserContext.Provider value={{ user, userLoading: loading }}>
+    <UserContext.Provider value={{ user, userLoading: loading, accountDeleted, deleteAccount, createNewAccount }}>
       {children}
     </UserContext.Provider>
   );

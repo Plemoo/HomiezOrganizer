@@ -1,8 +1,10 @@
 import { Expo, ExpoPushMessage } from 'expo-server-sdk'
 import { initializeApp } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
 import { DocumentData, FieldValue, Firestore, getFirestore } from 'firebase-admin/firestore'
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import { planActivityDeletion, planGroupDeletion } from './accountDeletion.js'
 initializeApp()
 const expo = new Expo()
 
@@ -201,6 +203,81 @@ export const leaveGroup = onCall(
         return {groupId};
     }
 );
+
+export const deleteAccount = onCall(
+    {region: "europe-west3", timeoutSeconds: 300},
+    async request => {
+        const userId = request.auth?.uid;
+        if (!userId) throw new HttpsError("unauthenticated", "Authentication is required.");
+
+        const db = getFirestore();
+
+        // Resolve memberships from the groups themselves so deletion also works
+        // when a user's cached groupUuids field is incomplete.
+        const groups = await db.collection(groupCollectionString)
+            .where("memberUuids", "array-contains", userId)
+            .get();
+
+        for (const groupDocument of groups.docs) {
+            const group = groupDocument.data();
+            const deletionPlan = planGroupDeletion(group, userId);
+
+            if (deletionPlan.deleteGroup) {
+                await db.recursiveDelete(groupDocument.ref);
+                continue;
+            }
+
+            const update: DocumentData = {
+                memberUuids: deletionPlan.memberUuids,
+                updatedAt: FieldValue.serverTimestamp(),
+            };
+            if (deletionPlan.ownerUuid !== undefined) update.ownerUuid = deletionPlan.ownerUuid;
+            await groupDocument.ref.update(update);
+        }
+
+        await deleteCreatedContentAndRemoveParticipation(db, userId);
+        await db.doc(`${userCollectionString}/${userId}`).delete();
+
+        try {
+            await getAuth().deleteUser(userId);
+        } catch (error) {
+            const authError = error as {code?: string};
+            if (authError.code !== "auth/user-not-found") throw error;
+        }
+
+        return {deleted: true};
+    }
+);
+
+async function deleteCreatedContentAndRemoveParticipation(db: Firestore, userId: string) {
+    // Scan each concrete subcollection. This avoids requiring collection-group
+    // indexes and also removes references left behind by an earlier group exit.
+    const groups = await db.collection(groupCollectionString).get();
+    for (const groupDocument of groups.docs) {
+        const activities = await groupDocument.ref.collection(activityCollectionString).get();
+        for (const activityDocument of activities.docs) {
+            const activity = activityDocument.data();
+            const deletionPlan = planActivityDeletion(activity, userId);
+            if (deletionPlan === null) {
+                await db.recursiveDelete(activityDocument.ref);
+                continue;
+            }
+
+            const update: DocumentData = {
+                ...deletionPlan,
+                updatedAt: FieldValue.serverTimestamp(),
+            };
+            await activityDocument.ref.update(update);
+
+            const comments = await activityDocument.ref.collection(commentCollectionString)
+                .where("userUuid", "==", userId)
+                .get();
+            const writer = db.bulkWriter();
+            comments.docs.forEach(commentDocument => writer.delete(commentDocument.ref));
+            await writer.close();
+        }
+    }
+}
 
 /**
  * Send notification if activity is scheduled or closed OR if timeslot changed

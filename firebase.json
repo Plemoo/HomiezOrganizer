@@ -40,6 +40,9 @@
   },
   "hosting": {
     "public": "public",
+    "predeploy": [
+      "node scripts/validate-hosting-legal.js"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

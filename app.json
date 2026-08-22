@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Aktivitäten Finder",
+    "name": "Aktivitäten planen",
     "slug": "HomiesOrganizer",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/other/aktivitaetenFinder.png",
+    "icon": "./assets/branding/app-icon.png",
     "scheme": "aktivitaetenfinder",
     "userInterfaceStyle": "automatic",
     "extra": {
@@ -13,26 +13,26 @@
       },
       "router": {}
     },
-    "platforms": [
-      "android",
-      "ios"
-    ],
+    "platforms": ["android", "ios"],
     "ios": {
+      "icon": "./assets/branding/app-icon.png",
       "supportsTablet": true,
       "config": {
         "usesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.homiesOrganizer",
+      "bundleIdentifier": "com.plemo.homiesOrganizer",
       "googleServicesFile": "./secure/GoogleService-Info.plist"
     },
     "android": {
+      "icon": "./assets/branding/app-icon.png",
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/other/aktivitaetenFinder.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/branding/android-adaptive-foreground.png",
+        "monochromeImage": "./assets/branding/android-monochrome.png",
+        "backgroundColor": "#0A0A0A"
       },
       "googleServicesFile": "./secure/google-services.json",
       "package": "com.homiesOrganizer"
@@ -42,9 +42,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/other/aktivitaetenFinder.png",
+          "image": "./assets/branding/splash-icon.png",
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0A0A0A"
         }
       ],
       "expo-secure-store",
@@ -52,21 +53,15 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/other/aktivitaetenFinderNotification.png",
-          "color": "#FFFFFF",
+          "icon": "./assets/branding/notification-icon.png",
+          "color": "#B8B8B8",
           "defaultChannel": "default"
         }
       ],
       "expo-web-browser",
       "expo-dev-client",
-      [
-        "@react-native-firebase/app",
-        {}
-      ],
-      [
-        "@react-native-firebase/auth",
-        {}
-      ]
+      ["@react-native-firebase/app", {}],
+      ["@react-native-firebase/auth", {}]
     ],
     "experiments": {
       "typedRoutes": true

@@ -94,6 +94,11 @@ export class SecureStorageHandler {
     }
   }
 
+  static clearUserFromSecureStore = (): Promise<void[]> => {
+    const localStorageKeys: (keyof ILocalUser)[] = ["id", "available", "birthday", "busy", "username", "groupUuids", "icon", "language", "expoPushToken", "appearance"];
+    return Promise.all(localStorageKeys.map((key) => SecureStore.deleteItemAsync(key)));
+  }
+
 }
 
 
