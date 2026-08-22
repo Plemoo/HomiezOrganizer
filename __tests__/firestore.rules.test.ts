@@ -61,11 +61,11 @@ describeWithFirestore('Firestore security rules', () => {
         }),
       ]);
     });
-  });
+  }, 30_000);
 
   afterAll(async () => {
-    await testEnvironment.cleanup();
-  });
+    await testEnvironment?.cleanup();
+  }, 30_000);
 
   it('allows profile reads only for oneself or members of a shared group', async () => {
     const memberDb = testEnvironment.authenticatedContext('member').firestore();
