@@ -82,6 +82,7 @@
     "@firebase/rules-unit-testing": "^5.0.1",
     "@react-native/jest-preset": "^0.86.2",
     "@types/lodash": "^4.17.17",
+    "@types/node": "^22.15.21",
     "@types/react": "~19.2.0",
     "cross-fetch": "^4.1.0",
     "eslint": "^9.25.0",
